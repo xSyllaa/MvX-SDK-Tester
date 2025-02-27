@@ -9,6 +9,7 @@ import type { SDK } from "@/data/sdks"
 
 interface SDKCardProps {
   sdk: SDK
+  onAnalyze: (sdk: SDK) => void
 }
 
 // Define tagCategoryColors here since it's not being imported correctly
@@ -41,7 +42,7 @@ const getContrastColor = (hexColor: string) => {
   return luminance > 0.5 ? "#000000" : "#ffffff"
 }
 
-export function SDKCard({ sdk }: SDKCardProps) {
+export function SDKCard({ sdk, onAnalyze }: SDKCardProps) {
   const router = useRouter()
 
   const handleAnalyze = () => {

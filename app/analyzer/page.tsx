@@ -88,9 +88,9 @@ export default function AnalyzerPage() {
           {selectedSDK && (
             <Alert className="mb-6">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Analyzing {selectedSDK.name}</AlertTitle>
+              <AlertTitle>SDK: {selectedSDK.name}</AlertTitle>
               <AlertDescription>
-                Analysis in progress. This would show detailed SDK information in a real implementation.
+                View details, documentation and code examples for this SDK.
               </AlertDescription>
             </Alert>
           )}
@@ -110,35 +110,20 @@ export default function AnalyzerPage() {
           {filteredSDKs.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {filteredSDKs.map((sdk) => (
-                <SDKCard key={sdk.name} sdk={sdk} onAnalyze={handleAnalyze} />
+                <SDKCard 
+                  key={sdk.name} 
+                  sdk={sdk} 
+                  onAnalyze={() => handleAnalyze(sdk)} 
+                />
               ))}
             </div>
           ) : (
             <div className="border rounded-lg p-8 text-center">
-              <p className="text-muted-foreground">No SDKs found matching your search criteria.</p>
+              <p className="text-muted-foreground">No SDKs match your search criteria.</p>
             </div>
           )}
         </div>
       </main>
-
-      <footer className="w-full border-t py-6 md:py-0">
-        <div className="container flex flex-col items-center justify-between gap-4 md:h-16 md:flex-row">
-          <p className="text-xs text-muted-foreground md:text-left">
-            &copy; {new Date().getFullYear()} MvX SDK Analyzer. All rights reserved.
-          </p>
-          <div className="flex gap-4">
-            <Link href="/terms" className="text-xs text-muted-foreground underline-offset-4 hover:underline">
-              Terms
-            </Link>
-            <Link href="/privacy" className="text-xs text-muted-foreground underline-offset-4 hover:underline">
-              Privacy
-            </Link>
-            <Link href="/docs" className="text-xs text-muted-foreground underline-offset-4 hover:underline">
-              Docs
-            </Link>
-          </div>
-        </div>
-      </footer>
     </div>
   )
 }

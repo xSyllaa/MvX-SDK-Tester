@@ -94,24 +94,6 @@ export default function ComponentsPage() {
         </div>
       </main>
 
-      <footer className="w-full border-t py-6 md:py-0">
-        <div className="container flex flex-col items-center justify-between gap-4 md:h-16 md:flex-row">
-          <p className="text-xs text-muted-foreground md:text-left">
-            &copy; {new Date().getFullYear()} MvX SDK Analyzer. All rights reserved.
-          </p>
-          <div className="flex gap-4">
-            <Link href="/terms" className="text-xs text-muted-foreground underline-offset-4 hover:underline">
-              Terms
-            </Link>
-            <Link href="/privacy" className="text-xs text-muted-foreground underline-offset-4 hover:underline">
-              Privacy
-            </Link>
-            <Link href="/docs" className="text-xs text-muted-foreground underline-offset-4 hover:underline">
-              Docs
-            </Link>
-          </div>
-        </div>
-      </footer>
     </div>
   )
 }
