@@ -3,13 +3,14 @@
 import { useState, KeyboardEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Search } from "lucide-react"
+import { Search, Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 export function TopMenuBar() {
   const router = useRouter()
   const [searchText, setSearchText] = useState("")
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   
   // Fonction pour gérer la recherche
   const handleSearch = () => {
@@ -45,39 +46,98 @@ export function TopMenuBar() {
     }
   }
 
+  // Basculer l'état du menu mobile
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen)
+  }
+
   return (
-    <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center">
-        <div className="flex w-full justify-between items-center gap-6 md:gap-10">
-          <Link href="/" className="font-bold text-xl tracking-tight">
-            MvX SDK Analyzer
-          </Link>
-
-          <div className="relative w-full max-w-md">
-            <Search 
-              className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground cursor-pointer" 
-              onClick={handleSearch}
-            />
-            <Input
-              type="search"
-              placeholder="Search SDKs & ABIs or paste any github url"
-              className="w-full pl-8 font-mono text-sm bg-background border-muted"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
+    <>
+      {/* Barre principale */}
+      <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center">
+          <div className="flex w-full justify-between items-center">
+            <Link href="/" className="font-bold text-xl tracking-tight">
+              MvX SDK Analyzer
+            </Link>
+            
+            {/* Navigation desktop uniquement */}
+            <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
+              <div className="relative max-w-md">
+                <Search 
+                  className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground cursor-pointer" 
+                  onClick={handleSearch}
+                />
+                <Input
+                  type="search"
+                  placeholder="Search SDKs & ABIs or paste any github url"
+                  className="w-full pl-8 font-mono text-sm bg-background border-muted"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                />
+              </div>
+              <Link href="/analyzer" className="transition-colors hover:text-foreground/80 text-foreground/60">
+                Analyzer
+              </Link>
+              <Link href="/key-components" className="transition-colors hover:text-foreground/80 text-foreground/60">
+                Components
+              </Link>
+            </nav>
+            
+            {/* Bouton menu mobile */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="md:hidden" 
+              onClick={toggleMobileMenu}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
           </div>
-
-          <nav className="flex items-center space-x-6 text-sm font-medium">
-            <Link href="/analyzer" className="transition-colors hover:text-foreground/80 text-foreground/60">
-              Analyzer
-            </Link>
-            <Link href="/key-components" className="transition-colors hover:text-foreground/80 text-foreground/60">
-              Key Components
-            </Link>
-          </nav>
         </div>
-      </div>
-    </header>
+      </header>
+      
+      {/* Menu mobile overlay */}
+      {mobileMenuOpen && (
+        <div className="fixed top-16 left-0 right-0 z-50 bg-background md:hidden border-b shadow-md">
+          <div className="container flex flex-col">
+            <div className="py-4 px-4">
+              <div className="relative mb-6">
+                <Search 
+                  className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground cursor-pointer" 
+                  onClick={handleSearch}
+                />
+                <Input
+                  type="search"
+                  placeholder="Search SDKs & ABIs or paste any github url"
+                  className="w-full pl-8 font-mono text-sm bg-background border-muted"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                />
+              </div>
+              
+              <div className="flex flex-col space-y-4 pb-4">
+                <Link 
+                  href="/analyzer" 
+                  className="py-2 text-lg transition-colors hover:text-foreground/80"
+                  onClick={toggleMobileMenu}
+                >
+                  Analyzer
+                </Link>
+                <Link 
+                  href="/key-components" 
+                  className="py-2 text-lg transition-colors hover:text-foreground/80"
+                  onClick={toggleMobileMenu}
+                >
+                  Components
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 } 
