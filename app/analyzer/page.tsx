@@ -7,10 +7,13 @@ import { Input } from "@/components/ui/input"
 import { SDKCard } from "@/components/sdk-card"
 import { sdkList, type SDK, tagCategoryColors } from "@/data/sdks"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useGithubClone } from "@/app/hooks/useGithubClone"
+import { useRouter } from "next/navigation"
 
 export default function AnalyzerPage() {
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedSDK, setSelectedSDK] = useState<SDK | null>(null)
+  const { cloneRepository, isLoading, error } = useGithubClone()
+  const router = useRouter()
 
   const filteredSDKs = sdkList.filter(
     (sdk) =>
@@ -20,8 +23,45 @@ export default function AnalyzerPage() {
   )
 
   const handleAnalyze = (sdk: SDK) => {
-    setSelectedSDK(sdk)
-    // In a real app, this would trigger the analysis process
+    const repoPath = extractRepoPath(sdk.github_link)
+    if (repoPath) {
+      router.push(`/analyzer/${encodeURIComponent(repoPath)}`)
+    }
+  }
+
+  const handleGithubUrl = async (url: string) => {
+    if (url.includes('github.com')) {
+      const result = await cloneRepository(url)
+      if (result.success) {
+        console.log('Dépôt cloné avec succès:', result.data)
+      } else {
+        console.error('Erreur de clonage:', result.error)
+        // Vous pouvez ajouter ici une notification d'erreur pour l'utilisateur
+        // par exemple avec un toast ou une alerte
+      }
+    }
+  }
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setSearchQuery(value)
+    
+    if (value.includes('github.com')) {
+      const repoPath = extractRepoPath(value)
+      if (repoPath) {
+        router.push(`/analyzer/${encodeURIComponent(repoPath)}`)
+      }
+    }
+  }
+
+  const extractRepoPath = (url: string): string | null => {
+    try {
+      const urlPattern = /github\.com\/([^\/]+\/[^\/]+)/
+      const matches = url.match(urlPattern)
+      return matches ? matches[1].replace('.git', '') : null
+    } catch {
+      return null
+    }
   }
 
   return (
@@ -40,7 +80,7 @@ export default function AnalyzerPage() {
                 placeholder="Search SDKs & ABIs or paste any github url"
                 className="w-full pl-8 font-mono text-sm bg-background border-muted"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearch}
               />
             </div>
 
@@ -80,30 +120,8 @@ export default function AnalyzerPage() {
                 placeholder="Search SDKs by name, description, or tags"
                 className="w-full pl-8 font-mono text-sm"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearch}
               />
-            </div>
-          </div>
-
-          {selectedSDK && (
-            <Alert className="mb-6">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>SDK: {selectedSDK.name}</AlertTitle>
-              <AlertDescription>
-                View details, documentation and code examples for this SDK.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-2">Tag Categories</h2>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(tagCategoryColors).map(([category, color]) => (
-                <div key={category} className="flex items-center">
-                  <div className="w-4 h-4 rounded-full mr-1" style={{ backgroundColor: color }}></div>
-                  <span className="text-sm">{category}</span>
-                </div>
-              ))}
             </div>
           </div>
 
@@ -113,7 +131,7 @@ export default function AnalyzerPage() {
                 <SDKCard 
                   key={sdk.name} 
                   sdk={sdk} 
-                  onAnalyze={() => handleAnalyze(sdk)} 
+                  onAnalyze={() => handleAnalyze(sdk)}
                 />
               ))}
             </div>

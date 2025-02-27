@@ -5,23 +5,11 @@ import { useRouter } from "next/navigation"
 import { ExternalLink, Github } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { SDK } from "@/data/sdks"
+import { tagCategoryColors, type SDK, type TagCategory } from "@/data/sdks"
 
 interface SDKCardProps {
   sdk: SDK
   onAnalyze: (sdk: SDK) => void
-}
-
-// Define tagCategoryColors here since it's not being imported correctly
-const tagCategoryColors: { [key: string]: string } = {
-  language: "#2563eb", // Indigo 500
-  platform: "#059669", // Emerald 500
-  license: "#dc2626", // Red 500
-  style: "#7c3aed", // Violet 500
-  other: "#eab308", // Yellow 500
-  purpose: "#f97316", // Orange 500
-  technology: "#0891b2", // Cyan 600
-  framework: "#8b5cf6", // Violet 500
 }
 
 const getContrastColor = (hexColor: string) => {
@@ -74,17 +62,15 @@ export function SDKCard({ sdk, onAnalyze }: SDKCardProps) {
 
       <div className="flex flex-wrap gap-2">
         {sdk.tags.map((tag) => {
-          const bgColor = tagCategoryColors[tag.category] || "#e5e7eb" // Use gray-200 as fallback
-          const textColor = getContrastColor(bgColor)
+          const bgColor = tagCategoryColors[tag.category] || "#e5e7eb"
           return (
             <Badge
               key={tag.name}
               variant="outline"
-              className="font-mono text-xs"
+              className="font-mono text-xs text-foreground"
               style={{
-                backgroundColor: `${bgColor}40`,
+                backgroundColor: `${bgColor}40`, // 40 is for 25% opacity
                 borderColor: bgColor,
-                color: textColor,
               }}
             >
               {tag.name}

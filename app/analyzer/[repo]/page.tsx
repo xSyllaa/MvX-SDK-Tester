@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { Loader2, FileText, ChevronRight, ChevronDown, FolderTree, Search, Copy, Download, Share } from "lucide-react"
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { CodeMirror } from "@/components/code-mirror"
 import { Octokit } from "octokit"
+import { useGithubClone } from "@/app/hooks/useGithubClone"
 
 interface FileNode {
   name: string
@@ -20,6 +21,14 @@ interface FileNode {
   sha?: string
 }
 
+interface GitHubContent {
+  name: string
+  path: string
+  type: string
+  sha: string
+  content?: string
+}
+
 const octokit = new Octokit()
 
 export default function AnalyzerPage() {
@@ -29,17 +38,18 @@ export default function AnalyzerPage() {
   const [fileTree, setFileTree] = useState<FileNode[]>([])
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const repoDataRef = useRef<GitHubContent[]>([])
+  const initializationRef = useRef(false)
 
-  const fetchFileContent = useCallback(async (owner: string, repo: string, path: string) => {
+  const { cloneRepository } = useGithubClone({
+    token: process.env.NEXT_PUBLIC_GITHUB_TOKEN
+  })
+
+  const fetchFileContent = useCallback(async (path: string) => {
     try {
-      const response = await octokit.rest.repos.getContent({
-        owner,
-        repo,
-        path,
-      })
-
-      if ("content" in response.data && typeof response.data.content === "string") {
-        return Buffer.from(response.data.content, "base64").toString()
+      const file = repoDataRef.current.find((f) => f.path === path)
+      if (file && typeof file.content === 'string' && file.content.length > 0) {
+        return Buffer.from(file.content, 'base64').toString('utf-8')
       }
       return ""
     } catch (error) {
@@ -48,118 +58,98 @@ export default function AnalyzerPage() {
     }
   }, [])
 
-  const fetchRepoStructure = useCallback(async (owner: string, repo: string, path = ""): Promise<FileNode[]> => {
+  const initializeRepo = useCallback(async () => {
+    if (!repoPath || initializationRef.current) return
+    
     try {
-      const response = await octokit.rest.repos.getContent({
-        owner,
-        repo,
-        path,
-      })
+      setLoading(true)
+      setError(null)
+      
+      const [owner, repo] = repoPath.split("/")
+      const result = await cloneRepository(`https://github.com/${owner}/${repo}`)
+      
+      if (result.success) {
+        repoDataRef.current = result.data
+        initializationRef.current = true
+        
+        const nodes: FileNode[] = result.data.map((item: GitHubContent) => ({
+          name: item.name,
+          path: item.path,
+          type: item.type === "dir" ? "directory" : "file",
+          sha: item.sha,
+          isOpen: false,
+          children: item.type === "dir" ? [] : undefined,
+        }))
 
-      if (Array.isArray(response.data)) {
-        const nodes = await Promise.all(
-          response.data.map(async (item) => {
-            const node: FileNode = {
-              name: item.name,
-              path: item.path,
-              type: item.type === "dir" ? "directory" : "file",
-              sha: item.sha,
-              isOpen: false,
-            }
-
-            if (item.type === "dir") {
-              node.children = []
-            }
-
-            return node
-          }),
-        )
-
-        return nodes.sort((a, b) => {
+        const sortedNodes = nodes.sort((a, b) => {
           if (a.type === "directory" && b.type === "file") return -1
           if (a.type === "file" && b.type === "directory") return 1
           return a.name.localeCompare(b.name)
         })
-      }
-    } catch (error) {
-      console.error("Error fetching repo structure:", error)
-      setError("Failed to fetch repository structure")
-    }
-    return []
-  }, [])
 
-  useEffect(() => {
-    const init = async () => {
-      setLoading(true)
-      setError(null)
-      const [owner, repo] = repoPath.split("/")
-      const structure = await fetchRepoStructure(owner, repo)
-      setFileTree(structure)
+        setFileTree(sortedNodes)
+      } else {
+        setError("Failed to clone repository")
+      }
+    } catch (err) {
+      setError("An error occurred while initializing the repository")
+      console.error(err)
+    } finally {
       setLoading(false)
     }
+  }, [repoPath, cloneRepository])
 
-    init()
-  }, [repoPath, fetchRepoStructure])
+  useEffect(() => {
+    initializeRepo()
+  }, [initializeRepo])
 
-  const toggleFolder = async (node: FileNode) => {
-    const updateNode = async (nodes: FileNode[]): Promise<FileNode[]> => {
-      const newNodes = []
-      for (const n of nodes) {
-        if (n.path === node.path) {
-          const [owner, repo] = repoPath.split("/")
-          const children = n.isOpen ? [] : await fetchRepoStructure(owner, repo, n.path)
-          newNodes.push({ ...n, isOpen: !n.isOpen, children })
-        } else if (n.children) {
-          newNodes.push({ ...n, children: await updateNode(n.children) })
-        } else {
-          newNodes.push(n)
-        }
-      }
-      return newNodes
-    }
-
-    setFileTree(await updateNode(fileTree))
-  }
-
-  const handleFileClick = async (node: FileNode) => {
+  const handleFileClick = useCallback(async (node: FileNode) => {
     if (node.type === "file") {
-      const [owner, repo] = repoPath.split("/")
-      const content = await fetchFileContent(owner, repo, node.path)
+      const content = await fetchFileContent(node.path)
       setSelectedFile({ ...node, content })
     }
-  }
+  }, [fetchFileContent])
 
-  const FileTreeNode = ({ node }: { node: FileNode }) => {
-    if (node.type === "file") {
-      return (
-        <div
-          className={cn(
-            "flex cursor-pointer items-center gap-2 py-1 pl-4 hover:bg-accent/50 rounded-sm",
-            selectedFile?.path === node.path && "bg-accent",
-          )}
-          onClick={() => handleFileClick(node)}
-        >
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-mono">{node.name}</span>
-        </div>
-      )
-    }
+  const toggleFolder = useCallback((node: FileNode) => {
+    setFileTree(currentTree => {
+      const updateNode = (nodes: FileNode[]): FileNode[] => {
+        return nodes.map(n => {
+          if (n.path === node.path) {
+            return { ...n, isOpen: !n.isOpen }
+          }
+          if (n.children) {
+            return { ...n, children: updateNode(n.children) }
+          }
+          return n
+        })
+      }
+      return updateNode(currentTree)
+    })
+  }, [])
 
+  const FileTreeNode = useCallback(({ node }: { node: FileNode }) => {
+    const isFolder = node.type === "directory"
     return (
       <div>
-        <div
-          className="flex cursor-pointer items-center gap-2 py-1 pl-4 hover:bg-accent/50 rounded-sm"
-          onClick={() => toggleFolder(node)}
-        >
-          {node.isOpen ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        <button
+          onClick={() => isFolder ? toggleFolder(node) : handleFileClick(node)}
+          className={cn(
+            "flex items-center gap-2 px-2 py-1 text-sm w-full hover:bg-accent rounded-sm",
+            selectedFile?.path === node.path && "bg-accent"
           )}
-          <FolderTree className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-mono font-medium">{node.name}</span>
-        </div>
-        {node.isOpen && node.children && (
+        >
+          {isFolder ? (
+            node.isOpen ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )
+          ) : (
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          )}
+          {node.name}
+        </button>
+        {isFolder && node.isOpen && node.children && (
           <div className="ml-4">
             {node.children.map((child) => (
               <FileTreeNode key={child.path} node={child} />
@@ -168,7 +158,7 @@ export default function AnalyzerPage() {
         )}
       </div>
     )
-  }
+  }, [toggleFolder, handleFileClick, selectedFile])
 
   return (
     <div className="flex flex-col min-h-screen">
