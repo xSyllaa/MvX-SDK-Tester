@@ -3,7 +3,7 @@
 import { useState, KeyboardEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Search, Menu, X } from "lucide-react"
+import { Search, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -56,14 +56,33 @@ export function TopMenuBar() {
       {/* Barre principale */}
       <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center">
-          <div className="flex w-full justify-between items-center">
-            <Link href="/" className="font-bold text-xl tracking-tight">
+          {/* Version mobile: titre à gauche, menu à droite */}
+          <div className="flex w-full items-center md:hidden">
+            <Link href="/" className="font-bold text-xl tracking-tight whitespace-nowrap">
               MvX SDK Analyzer
             </Link>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="ml-auto" 
+              onClick={toggleMobileMenu}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          </div>
+          
+          {/* Version desktop: 3 colonnes */}
+          <div className="hidden md:grid md:grid-cols-[1fr_2fr_1fr] w-full items-center gap-4">
+            {/* 1. Partie gauche - Logo */}
+            <div className="flex justify-start">
+              <Link href="/" className="font-bold text-xl tracking-tight whitespace-nowrap">
+                MvX SDK Analyzer
+              </Link>
+            </div>
             
-            {/* Navigation desktop uniquement */}
-            <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
-              <div className="relative max-w-md">
+            {/* 2. Partie centrale - Recherche */}
+            <div className="flex justify-center w-full">
+              <div className="relative w-full">
                 <Search 
                   className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground cursor-pointer" 
                   onClick={handleSearch}
@@ -71,29 +90,25 @@ export function TopMenuBar() {
                 <Input
                   type="search"
                   placeholder="Search SDKs & ABIs or paste any github url"
-                  className="w-full pl-8 font-mono text-sm bg-background border-muted"
+                  className="w-full pl-8 font-mono text-sm bg-background border border-input"
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
                   onKeyDown={handleKeyDown}
                 />
               </div>
-              <Link href="/analyzer" className="transition-colors hover:text-foreground/80 text-foreground/60">
-                Analyzer
-              </Link>
-              <Link href="/key-components" className="transition-colors hover:text-foreground/80 text-foreground/60">
-                Components
-              </Link>
-            </nav>
+            </div>
             
-            {/* Bouton menu mobile */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="md:hidden" 
-              onClick={toggleMobileMenu}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
+            {/* 3. Partie droite - Navigation */}
+            <div className="flex justify-end">
+              <nav className="flex items-center space-x-6 text-sm font-medium">
+                <Link href="/analyzer" className="transition-colors hover:text-foreground/80 text-foreground/60">
+                  Analyzer
+                </Link>
+                <Link href="/key-components" className="transition-colors hover:text-foreground/80 text-foreground/60">
+                  Components
+                </Link>
+              </nav>
+            </div>
           </div>
         </div>
       </header>
@@ -103,7 +118,7 @@ export function TopMenuBar() {
         <div className="fixed top-16 left-0 right-0 z-50 bg-background md:hidden border-b shadow-md">
           <div className="container flex flex-col">
             <div className="py-4 px-4">
-              <div className="relative mb-6">
+              <div className="relative w-full mb-6">
                 <Search 
                   className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground cursor-pointer" 
                   onClick={handleSearch}
@@ -111,7 +126,7 @@ export function TopMenuBar() {
                 <Input
                   type="search"
                   placeholder="Search SDKs & ABIs or paste any github url"
-                  className="w-full pl-8 font-mono text-sm bg-background border-muted"
+                  className="w-full pl-8 font-mono text-sm bg-background border border-input"
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
                   onKeyDown={handleKeyDown}

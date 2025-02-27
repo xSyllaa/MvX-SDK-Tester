@@ -92,3 +92,22 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Style personnalisé pour les inputs */
+@layer components {
+  .input {
+    @apply border-input bg-background rounded-md;
+  }
+  
+  /* Supprimer tous les effets de focus par défaut et créer un style unique */
+  input:focus-visible, 
+  input:focus,
+  .input:focus-visible,
+  .input:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    border-width: 1px !important;
+    border-color: hsl(var(--primary)) !important;
+    transition: border-color 0.2s ease-in-out;
+  }
+}
