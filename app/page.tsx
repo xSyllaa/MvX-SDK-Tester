@@ -6,34 +6,6 @@ import { Input } from "@/components/ui/input"
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen font-mono">
-      <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center">
-          <div className="flex w-full justify-between items-center gap-6 md:gap-10">
-            <Link href="/" className="font-bold text-xl tracking-tight">
-              MvX SDK Analyzer
-            </Link>
-
-            <div className="relative w-full max-w-md">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search SDKs & ABIs or paste any github url"
-                className="w-full pl-8 font-mono text-sm bg-background border-muted"
-              />
-            </div>
-
-            <nav className="flex items-center space-x-6 text-sm font-medium">
-              <Link href="/analyzer" className="transition-colors hover:text-foreground/80 text-foreground/60">
-                Analyzer
-              </Link>
-              <Link href="/components" className="transition-colors hover:text-foreground/80 text-foreground/60">
-                Components
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
       <main className="flex-1">
         <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48">
           <div className="container px-4 md:px-6">
@@ -202,7 +174,6 @@ export default function Home() {
           </div>
         </section>
       </main>
-
     </div>
   )
 }

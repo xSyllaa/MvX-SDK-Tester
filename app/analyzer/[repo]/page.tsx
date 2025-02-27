@@ -3,33 +3,23 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { Loader2, FileText, ChevronRight, ChevronDown, FolderTree, Search, Copy, Download, Share } from "lucide-react"
+import { Loader2, FileText, ChevronRight, ChevronDown, Search, Copy, Download, Share } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { CodeMirror } from "@/components/code-mirror"
-import { Octokit } from "octokit"
 import { useGithubClone } from "@/app/hooks/useGithubClone"
 
 interface FileNode {
-  name: string
-  path: string
-  type: "file" | "directory"
-  content?: string
-  children?: FileNode[]
-  isOpen?: boolean
-  sha?: string
+  name: string;
+  path: string;
+  type: "file" | "directory";
+  size?: number;
+  content?: string;
+  children?: FileNode[];
+  isOpen?: boolean;
+  sha: string;
 }
-
-interface GitHubContent {
-  name: string
-  path: string
-  type: string
-  sha: string
-  content?: string
-}
-
-const octokit = new Octokit()
 
 export default function AnalyzerPage() {
   const params = useParams()
@@ -38,77 +28,110 @@ export default function AnalyzerPage() {
   const [fileTree, setFileTree] = useState<FileNode[]>([])
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const repoDataRef = useRef<GitHubContent[]>([])
-  const initializationRef = useRef(false)
+  const { cloneRepository, isLoading, error: cloneError } = useGithubClone()
+  const isInitialMount = useRef(true)
 
-  const { cloneRepository } = useGithubClone({
-    token: process.env.NEXT_PUBLIC_GITHUB_TOKEN
-  })
-
-  const fetchFileContent = useCallback(async (path: string) => {
-    try {
-      const file = repoDataRef.current.find((f) => f.path === path)
-      if (file && typeof file.content === 'string' && file.content.length > 0) {
-        return Buffer.from(file.content, 'base64').toString('utf-8')
+  // Charger le dépôt une seule fois au montage du composant
+  useEffect(() => {
+    const fetchRepo = async () => {
+      // Cette condition empêche la ré-exécution après le premier rendu
+      if (!isInitialMount.current) return
+      
+      isInitialMount.current = false
+      
+      try {
+        setLoading(true)
+        setError(null)
+        console.log("Chargement du dépôt:", repoPath)
+        
+        const result = await cloneRepository(`https://github.com/${repoPath}`)
+        
+        if (result.success) {
+          console.log("Réussite du clonage, création de l'arborescence")
+          
+          // Construction de l'arbre de fichiers
+          const nodes = result.data.map((item: FileNode) => ({
+            ...item,
+            isOpen: false,
+            children: item.type === "directory" ? [] : undefined,
+          }))
+          
+          // Organisation hiérarchique des fichiers/dossiers
+          const rootNodes: FileNode[] = []
+          const pathMap: Record<string, FileNode> = {}
+          
+          // Créer un map de tous les nœuds par chemin
+          nodes.forEach(node => {
+            pathMap[node.path] = node
+          })
+          
+          // Organiser les nœuds dans une structure arborescente
+          nodes.forEach(node => {
+            if (node.path.includes('/')) {
+              // Ce n'est pas un nœud racine
+              const lastSlashIndex = node.path.lastIndexOf('/')
+              const parentPath = node.path.substring(0, lastSlashIndex)
+              const parent = pathMap[parentPath]
+              
+              if (parent && parent.children) {
+                parent.children.push(node)
+              } else {
+                rootNodes.push(node)
+              }
+            } else {
+              // Nœud racine
+              rootNodes.push(node)
+            }
+          })
+          
+          // Trier les nœuds (dossiers d'abord, puis par nom)
+          const sortNodes = (nodes: FileNode[]) => {
+            return nodes.sort((a, b) => {
+              if (a.type === "directory" && b.type === "file") return -1
+              if (a.type === "file" && b.type === "directory") return 1
+              return a.name.localeCompare(b.name)
+            })
+          }
+          
+          // Appliquer le tri à tous les niveaux
+          const sortRecursive = (nodes: FileNode[]) => {
+            const sorted = sortNodes(nodes)
+            sorted.forEach(node => {
+              if (node.children && node.children.length > 0) {
+                node.children = sortRecursive(node.children)
+              }
+            })
+            return sorted
+          }
+          
+          const sortedRootNodes = sortRecursive(rootNodes)
+          setFileTree(sortedRootNodes)
+        } else {
+          setError(result.error?.message || "Échec du clonage du dépôt")
+        }
+      } catch (err: any) {
+        console.error("Erreur lors du chargement:", err)
+        setError(err.message || "Une erreur s'est produite")
+      } finally {
+        setLoading(false)
       }
-      return ""
-    } catch (error) {
-      console.error("Error fetching file content:", error)
-      return ""
+    }
+    
+    fetchRepo()
+  }, []) // Dépendances vides pour n'exécuter qu'une seule fois
+
+  // Si l'erreur vient du hook, la synchroniser
+  useEffect(() => {
+    if (cloneError) {
+      setError(cloneError)
+    }
+  }, [cloneError])
+
+  const handleFileClick = useCallback((node: FileNode) => {
+    if (node.type === "file") {
+      setSelectedFile(node)
     }
   }, [])
-
-  const initializeRepo = useCallback(async () => {
-    if (!repoPath || initializationRef.current) return
-    
-    try {
-      setLoading(true)
-      setError(null)
-      
-      const [owner, repo] = repoPath.split("/")
-      const result = await cloneRepository(`https://github.com/${owner}/${repo}`)
-      
-      if (result.success) {
-        repoDataRef.current = result.data
-        initializationRef.current = true
-        
-        const nodes: FileNode[] = result.data.map((item: GitHubContent) => ({
-          name: item.name,
-          path: item.path,
-          type: item.type === "dir" ? "directory" : "file",
-          sha: item.sha,
-          isOpen: false,
-          children: item.type === "dir" ? [] : undefined,
-        }))
-
-        const sortedNodes = nodes.sort((a, b) => {
-          if (a.type === "directory" && b.type === "file") return -1
-          if (a.type === "file" && b.type === "directory") return 1
-          return a.name.localeCompare(b.name)
-        })
-
-        setFileTree(sortedNodes)
-      } else {
-        setError("Failed to clone repository")
-      }
-    } catch (err) {
-      setError("An error occurred while initializing the repository")
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }, [repoPath, cloneRepository])
-
-  useEffect(() => {
-    initializeRepo()
-  }, [initializeRepo])
-
-  const handleFileClick = useCallback(async (node: FileNode) => {
-    if (node.type === "file") {
-      const content = await fetchFileContent(node.path)
-      setSelectedFile({ ...node, content })
-    }
-  }, [fetchFileContent])
 
   const toggleFolder = useCallback((node: FileNode) => {
     setFileTree(currentTree => {
@@ -162,39 +185,12 @@ export default function AnalyzerPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
-          <div className="flex w-full justify-between items-center gap-6 md:gap-10">
-            <Link href="/" className="font-bold text-xl tracking-tight">
-              MvX SDK Analyzer
-            </Link>
-
-            <div className="relative w-full max-w-md">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search SDKs & ABIs or paste any github url"
-                className="w-full pl-8 font-mono text-sm bg-background border-muted"
-              />
-            </div>
-
-            <nav className="flex items-center space-x-6 text-sm font-medium">
-              <Link href="/analyzer" className="transition-colors hover:text-foreground/80 text-foreground">
-                Analyzer
-              </Link>
-              <Link href="/components" className="transition-colors hover:text-foreground/80 text-foreground/60">
-                Components
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
       <main className="container mx-auto grid grid-cols-[300px,1fr] gap-6 p-6 flex-1">
         {/* Left Panel - File Tree */}
         <div className="rounded-lg border bg-background shadow-sm">
           <div className="p-4 border-b">
             <h2 className="text-lg font-semibold">Repository Structure</h2>
+            {loading && <div className="mt-2 text-sm text-muted-foreground">Chargement en cours...</div>}
           </div>
           <div className="p-2 h-[calc(100vh-10rem)] overflow-y-auto">
             {loading ? (
@@ -203,8 +199,12 @@ export default function AnalyzerPage() {
               </div>
             ) : error ? (
               <div className="flex items-center justify-center py-8 text-sm text-destructive">{error}</div>
-            ) : (
+            ) : fileTree.length > 0 ? (
               fileTree.map((node) => <FileTreeNode key={node.path} node={node} />)
+            ) : (
+              <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+                Aucun fichier trouvé
+              </div>
             )}
           </div>
         </div>
@@ -214,24 +214,30 @@ export default function AnalyzerPage() {
           <div className="p-4 border-b">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">{selectedFile ? selectedFile.path : "File Content"}</h2>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="icon" title="Search">
-                  <Search className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" title="Copy">
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" title="Download">
-                  <Download className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" title="Share">
-                  <Share className="h-4 w-4" />
-                </Button>
-              </div>
+              {selectedFile && (
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="icon" title="Search">
+                    <Search className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" title="Copy">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" title="Download">
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" title="Share">
+                    <Share className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
           <div className="h-[calc(100vh-10rem)] bg-muted/50">
-            {selectedFile ? (
+            {loading ? (
+              <div className="flex h-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : selectedFile ? (
               <div className="h-full">
                 <CodeMirror
                   value={selectedFile.content || ""}
