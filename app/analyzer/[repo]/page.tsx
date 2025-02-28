@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { CodeMirror } from "@/components/code-mirror"
 import { useGithubClone } from "@/app/hooks/useGithubClone"
 import { sdkList, tagCategoryColors, TagCategory } from '@/data/sdkData'
+import { Switch } from "@/components/ui/switch"
 
 interface FileNode {
   name: string;
@@ -61,6 +62,7 @@ export default function AnalyzerPage() {
   const [parsedRepo, setParsedRepo] = useState<ParsedRepo | null>(null)
   const { cloneRepository, isLoading, error: cloneError } = useGithubClone()
   const isInitialMount = useRef(true)
+  const [showFileStats, setShowFileStats] = useState<boolean>(false)
 
   // 1. Parse and validate repository URL
   const parseRepositoryUrl = useCallback((repoPath: string): ParsedRepo => {
@@ -211,6 +213,51 @@ export default function AnalyzerPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
+  // Modification de la fonction cleanFileTree pour mieux détecter les dossiers vides
+  const cleanFileTree = useCallback((node: FileNode): FileNode | null => {
+    if (node.type !== "directory" || !node.children) {
+      return node;
+    }
+
+    // Nettoyer récursivement tous les enfants d'abord (et filtrer les null)
+    const cleanedChildren = node.children
+      .map(cleanFileTree)
+      .filter((child): child is FileNode => child !== null);
+    
+    // Si le dossier est vide (0 enfants) et se termine par '/' (comme dans l'image), le supprimer
+    if (cleanedChildren.length === 0 && node.path.endsWith('/')) {
+      return null;
+    }
+    
+    // Vérifier s'il y a un sous-dossier avec le même nom
+    const sameDirChild = cleanedChildren.find(child => 
+      child.type === "directory" && 
+      child.name === node.name
+    );
+
+    // Si un tel sous-dossier existe, fusionner ses enfants avec le dossier parent
+    if (sameDirChild && sameDirChild.children) {
+      return {
+        ...node,
+        children: [
+          ...cleanedChildren.filter(child => child !== sameDirChild),
+          ...(sameDirChild.children)
+        ]
+      };
+    }
+
+    // S'il n'y a pas d'enfants et que c'est un dossier de second niveau (contient un slash), le filtrer
+    if (cleanedChildren.length === 0 && node.path.includes('/')) {
+      return null;
+    }
+
+    // Sinon, retourner le nœud avec ses enfants nettoyés
+    return {
+      ...node,
+      children: cleanedChildren
+    };
+  }, []);
+
   // Main repository loading function
   useEffect(() => {
     const analyzeRepository = async () => {
@@ -294,10 +341,11 @@ export default function AnalyzerPage() {
         }
         
         const sortedRootNodes = sortRecursive(rootNodes)
-        setFileTree(sortedRootNodes)
+        const cleanedFileTree = sortedRootNodes.map(cleanFileTree).filter((node): node is FileNode => node !== null)
+        setFileTree(cleanedFileTree.filter((node): node is FileNode => node !== null))
         
         // Step 5: Calculate repository statistics
-        const stats = calculateRepoStats(sortedRootNodes)
+        const stats = calculateRepoStats(cleanedFileTree)
         
         // Step 6: Update repository metadata with file stats
         setRepoMetadata({
@@ -307,7 +355,7 @@ export default function AnalyzerPage() {
         })
         
         // Step 7: Find and select README.md if it exists
-        const readmeFile = findReadmeFile(sortedRootNodes)
+        const readmeFile = findReadmeFile(cleanedFileTree)
         if (readmeFile) {
           setSelectedFile(readmeFile)
         }
@@ -355,29 +403,82 @@ export default function AnalyzerPage() {
     })
   }, [])
 
-  // File tree node component
+  // Fonction pour compter tous les éléments (fichiers + dossiers)
+  const countItems = useCallback((node: FileNode): number => {
+    if (node.type === "file") {
+      return 1;
+    }
+    
+    if (node.type === "directory" && node.children) {
+      // Compte 1 pour le dossier lui-même + tous ses enfants
+      return 1 + node.children.reduce((count, child) => {
+        return count + countItems(child);
+      }, 0);
+    }
+    
+    return 0;
+  }, []);
+
+  // Fonction pour calculer la taille totale d'un dossier
+  const calculateFolderSize = useCallback((node: FileNode): number => {
+    if (node.type === "file") {
+      return node.size || 0;
+    }
+    
+    if (node.type === "directory" && node.children) {
+      return node.children.reduce((size, child) => {
+        return size + calculateFolderSize(child);
+      }, 0);
+    }
+    
+    return 0;
+  }, []);
+
+  // Modifier le composant FileTreeNode
   const FileTreeNode = useCallback(({ node }: { node: FileNode }) => {
-    const isFolder = node.type === "directory"
+    const isFolder = node.type === "directory";
+    const itemCount = isFolder && node.children ? countItems(node) - 1 : 0; // -1 pour ne pas compter le dossier lui-même
+    const size = node.type === "file" ? node.size || 0 : calculateFolderSize(node);
+    
     return (
       <div>
-        <button
-          onClick={() => isFolder ? toggleFolder(node) : handleFileClick(node)}
-          className={cn(
-            "flex items-center gap-2 px-2 py-1 text-sm w-full hover:bg-accent rounded-sm",
-            selectedFile?.path === node.path && "bg-accent"
+        <div className="flex items-center justify-between px-2 py-1 hover:bg-accent rounded-sm">
+          <button
+            onClick={() => isFolder ? toggleFolder(node) : handleFileClick(node)}
+            className={cn(
+              "flex items-center gap-2 text-sm",
+              selectedFile?.path === node.path && "font-medium"
+            )}
+          >
+            <div className="relative flex-shrink-0 w-5 h-5 flex items-center justify-center">
+              {isFolder ? (
+                <>
+                  {node.isOpen ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  {/* Nombre d'éléments sous la flèche (seulement si showFileStats est true) */}
+                  {showFileStats && itemCount > 0 && (
+                    <span className="absolute -bottom-2 left-[60%] transform -translate-x text-[8px] font-medium text-muted-foreground">
+                      {itemCount}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
+            <span className="truncate">{node.name}</span>
+          </button>
+          
+          {/* Taille du fichier/dossier à droite (seulement si showFileStats est true) */}
+          {showFileStats && (
+            <span className="text-xs text-muted-foreground ml-2">
+              {formatFileSize(size)}
+            </span>
           )}
-        >
-          {isFolder ? (
-            node.isOpen ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            )
-          ) : (
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          )}
-          {node.name}
-        </button>
+        </div>
         {isFolder && node.isOpen && node.children && (
           <div className="ml-4">
             {node.children.map((child) => (
@@ -386,14 +487,65 @@ export default function AnalyzerPage() {
           </div>
         )}
       </div>
-    )
-  }, [toggleFolder, handleFileClick, selectedFile])
+    );
+  }, [toggleFolder, handleFileClick, selectedFile, countItems, calculateFolderSize, showFileStats]);
+
+  // Ajouter cette fonction pour déterminer le mode de langue en fonction de l'extension
+  function getLanguageModeForFile(filename: string): string {
+    const extension = filename.split('.').pop()?.toLowerCase();
+    
+    const modeMap: Record<string, string> = {
+      'js': 'javascript',
+      'jsx': 'jsx',
+      'ts': 'typescript',
+      'tsx': 'typescript',
+      'html': 'htmlmixed',
+      'css': 'css',
+      'json': 'application/json',
+      'md': 'markdown',
+      'php': 'php',
+      'py': 'python',
+      'go': 'go',
+      'java': 'clike',
+      'c': 'clike',
+      'cpp': 'clike',
+      'cs': 'clike',
+      'rs': 'rust',
+      'rb': 'ruby',
+      'sh': 'shell',
+      'yml': 'yaml',
+      'yaml': 'yaml',
+      'toml': 'toml',
+    };
+    
+    return modeMap[extension || ''] || 'text/plain';
+  }
+
+  // Updated function with English descriptions
+  function getCategoryDescription(category: TagCategory): string {
+    switch (category) {
+      case TagCategory.LANGUAGE:
+        return "Programming language used";
+      case TagCategory.PURPOSE:
+        return "Main objective or use case";
+      case TagCategory.FRAMEWORK:
+        return "Framework or library used";
+      case TagCategory.PLATFORM:
+        return "Compatible platform or environment";
+      case TagCategory.TECHNOLOGY:
+        return "Integrated technology or tool";
+      case TagCategory.OTHER:
+        return "Other relevant information";
+      default:
+        return "Tag category";
+    }
+  }
 
   return (
     <div className="container mx-auto py-6">
       <div className="grid gap-4">
-        {/* Metadata Section with Improved Layout & Loading State */}
-        <div className="rounded-lg border bg-background shadow-sm w-full">
+        {/* Metadata Section with Improved Layout */}
+        <div className="rounded-lg border bg-background shadow-sm w-full mb-4">
           <div className="p-4 border-b">
             {!repoMetadata ? (
               // Skeleton loader pour l'en-tête pendant le chargement
@@ -404,28 +556,42 @@ export default function AnalyzerPage() {
             ) : (
               <>
                 <div className="flex items-center justify-between">
-                  <h1 className="text-2xl font-bold flex items-center gap-2">
-                    {repoMetadata.name}
-                    <a 
-                      href={repoMetadata.repoUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center text-muted-foreground hover:text-primary"
-                      title="View on GitHub"
+                  <div>
+                    <h1 className="text-2xl font-bold flex items-center gap-2">
+                      <span className="text-muted-foreground font-medium">
+                        {repoMetadata.fullName.split('/')[0]}
+                      </span>
+                      <span className="text-muted-foreground">/</span>
+                      <span>{repoMetadata.name}</span>
+                      <a 
+                        href={repoMetadata.repoUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-muted-foreground hover:text-primary"
+                        title="View on GitHub"
+                      >
+                        <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
+                        </svg>
+                      </a>
+                    </h1>
+                  </div>
+
+                  {/* GitHub Stats with English tooltips */}
+                  <div className="flex items-center gap-2 border rounded-lg px-3 py-1 shadow-sm bg-muted/30">
+                    <div 
+                      className="flex items-center gap-1 pr-3 border-r cursor-help tooltip" 
+                      data-tooltip="GitHub Stars - Number of users who have starred this repository"
                     >
-                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
-                      </svg>
-                    </a>
-                  </h1>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1" title="Stars">
                       <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
                       </svg>
                       <span className="font-semibold">{repoMetadata.stars.toLocaleString()}</span>
                     </div>
-                    <div className="flex items-center gap-1" title="Forks">
+                    <div 
+                      className="flex items-center gap-1 pl-1 cursor-help tooltip" 
+                      data-tooltip="GitHub Forks - Number of copies created from this repository for independent development"
+                    >
                       <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M5.559 8.855c.166 1.183.789 3.207 3.087 4.079C11 13.829 11 14.534 11 15v.163c-1.44.434-2.5 1.757-2.5 3.337 0 1.93 1.57 3.5 3.5 3.5s3.5-1.57 3.5-3.5c0-1.58-1.06-2.903-2.5-3.337V15c0-.466 0-1.171 2.354-2.065 2.298-.872 2.921-2.896 3.087-4.079C19.912 8.441 21 7.102 21 5.5 21 3.57 19.43 2 17.5 2S14 3.57 14 5.5c0 1.552 1.022 2.855 2.424 3.313-.146.735-.565 1.791-1.778 2.252-1.192.452-2.053.953-2.646 1.536-.593-.583-1.453-1.084-2.646-1.536-1.213-.461-1.633-1.517-1.778-2.252C8.978 8.355 10 7.052 10 5.5 10 3.57 8.43 2 6.5 2S3 3.57 3 5.5c0 1.602 1.088 2.941 2.559 3.355zM17.5 4c.827 0 1.5.673 1.5 1.5S18.327 7 17.5 7 16 6.327 16 5.5 16.673 4 17.5 4zm-11 0C7.327 4 8 4.673 8 5.5S7.327 7 6.5 7 5 6.327 5 5.5 5.673 4 6.5 4zm5 14.5c0 .827-.673 1.5-1.5 1.5s-1.5-.673-1.5-1.5.673-1.5 1.5-1.5 1.5.673 1.5 1.5z"></path>
                       </svg>
@@ -434,21 +600,22 @@ export default function AnalyzerPage() {
                   </div>
                 </div>
                 
-                {/* Description - Réduit l'espace en supprimant la marge supérieure */}
-                <p className="text-muted-foreground">{repoMetadata.description}</p>
+                {/* Description */}
+                <p className="text-muted-foreground mt-1">{repoMetadata.description}</p>
                 
-                {/* Tags - Only displayed if present */}
+                {/* Tags - With English tooltips */}
                 {repoMetadata.tags && repoMetadata.tags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {repoMetadata.tags.map((tag, index) => (
                       <span 
                         key={index} 
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" 
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-help tooltip" 
                         style={{ 
                           backgroundColor: `${tagCategoryColors[tag.category]}20`, 
                           color: tagCategoryColors[tag.category],
                           border: `1px solid ${tagCategoryColors[tag.category]}`
                         }}
+                        data-tooltip={`Category: ${tag.category} - ${getCategoryDescription(tag.category)}`}
                       >
                         {tag.name}
                       </span>
@@ -508,11 +675,19 @@ export default function AnalyzerPage() {
 
         {/* Main Content Area - File Tree and File Content */}
         <div className="grid grid-cols-[300px,1fr] gap-6">
-          {/* Left Panel - File Tree */}
+          {/* Left Panel - File Tree with Toggle */}
           <div className="rounded-lg border bg-background shadow-sm">
-            <div className="p-4 border-b">
+            <div className="p-4 border-b flex justify-between items-center">
               <h2 className="text-lg font-semibold">Repository Structure</h2>
-              {loading && <div className="mt-2 text-sm text-muted-foreground">Loading repository...</div>}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Stats</span>
+                <Switch 
+                  checked={showFileStats} 
+                  onCheckedChange={setShowFileStats} 
+                  aria-label="Toggle file statistics"
+                />
+                {loading && <div className="text-sm text-muted-foreground ml-2">Loading...</div>}
+              </div>
             </div>
             <div className="p-2 h-[calc(100vh-10rem)] overflow-y-auto">
               {loading ? (
@@ -535,7 +710,21 @@ export default function AnalyzerPage() {
           <div className="rounded-lg border bg-background shadow-sm w-full">
             <div className="p-4 border-b">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold truncate max-w-[80%]">{selectedFile ? selectedFile.path : "File Content"}</h2>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-lg font-semibold truncate max-w-[80%]">
+                    {selectedFile ? selectedFile.path : "File Content"}
+                  </h2>
+                  {selectedFile && selectedFile.content && (
+                    <div className="flex gap-3">
+                      <span className="px-2 py-1 bg-muted rounded-md text-xs text-muted-foreground">
+                        {selectedFile.content.split('\n').length} lines
+                      </span>
+                      <span className="px-2 py-1 bg-muted rounded-md text-xs text-muted-foreground">
+                        {formatFileSize(new TextEncoder().encode(selectedFile.content).length)}
+                      </span>
+                    </div>
+                  )}
+                </div>
                 {selectedFile && (
                   <div className="flex gap-2">
                     <Button variant="ghost" size="icon" title="Search">
@@ -554,23 +743,23 @@ export default function AnalyzerPage() {
                 )}
               </div>
             </div>
-            <div className="h-[calc(100vh-10rem)] bg-muted/50 overflow-hidden relative">
+            <div className="h-[calc(100vh-12rem)] bg-muted/50 overflow-hidden relative">
               {loading ? (
                 <div className="flex h-full items-center justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
               ) : selectedFile ? (
                 <div className="absolute inset-0 overflow-auto">
-                  <div className="w-full h-full">
-                    <CodeMirror
-                      value={selectedFile.content || ""}
-                      height="100%"
-                      filename={selectedFile.name}
-                      options={{
-                        lineWrapping: true,
-                        theme: 'dark'
-                      }}
-                    />
+                  <div className="w-full h-full bg-muted/50">
+                    <div className="w-full h-full code-editor-light">
+                      <CodeMirror
+                        value={selectedFile.content || ''}
+                        height="100%"
+                        filename={selectedFile.name}
+                        lineWrapping={true}
+                        mode={getLanguageModeForFile(selectedFile.name)}
+                      />
+                    </div>
                   </div>
                 </div>
               ) : (
