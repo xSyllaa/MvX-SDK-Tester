@@ -4,6 +4,7 @@ import { useRepoData } from "@/components/repo/RepoDataProvider"
 import { Loader2, Search, Copy, Download, Share } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CodeMirror } from "@/components/code-mirror"
+import { useCallback } from "react"
 
 // Fonction pour déterminer le mode de langage en fonction de l'extension
 function getLanguageModeForFile(filename: string): string {
@@ -43,6 +44,43 @@ export function FileContent() {
     formatFileSize,
   } = useRepoData();
 
+  // Fonction pour activer la recherche dans l'éditeur
+  const handleSearchClick = useCallback(() => {
+    if (typeof window !== 'undefined' && window.openCodeMirrorSearch) {
+      // @ts-ignore - Cette propriété est définie dynamiquement
+      window.openCodeMirrorSearch();
+    }
+  }, []);
+
+  // Fonction pour copier le contenu du fichier
+  const handleCopyClick = useCallback(() => {
+    if (selectedFile?.content) {
+      navigator.clipboard.writeText(selectedFile.content)
+        .then(() => {
+          // On pourrait ajouter une notification de succès ici
+          console.log('Contenu copié dans le presse-papier');
+        })
+        .catch(err => {
+          console.error('Erreur lors de la copie:', err);
+        });
+    }
+  }, [selectedFile]);
+
+  // Fonction pour télécharger le fichier
+  const handleDownloadClick = useCallback(() => {
+    if (selectedFile?.content && selectedFile?.name) {
+      const blob = new Blob([selectedFile.content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = selectedFile.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  }, [selectedFile]);
+
   return (
     <div className="rounded-lg border bg-background shadow-sm w-full">
       <div className="p-4 border-b">
@@ -57,20 +95,35 @@ export function FileContent() {
                   {selectedFile.content.split('\n').length} lines
                 </span>
                 <span className="px-2 py-1 bg-muted rounded-md text-xs text-muted-foreground">
-                  {formatFileSize(new TextEncoder().encode(selectedFile.content).length)}
+                  {formatFileSize(new TextEncoder().encode(selectedFile.content).length).replace("Bytes", "B")}
                 </span>
               </div>
             )}
           </div>
           {selectedFile && (
             <div className="flex gap-2">
-              <Button variant="ghost" size="icon" title="Search">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                title="Search in file (Ctrl+F)"
+                onClick={handleSearchClick}
+              >
                 <Search className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" title="Copy">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                title="Copy content"
+                onClick={handleCopyClick}
+              >
                 <Copy className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" title="Download">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                title="Download file"
+                onClick={handleDownloadClick}
+              >
                 <Download className="h-4 w-4" />
               </Button>
               <Button variant="ghost" size="icon" title="Share">
