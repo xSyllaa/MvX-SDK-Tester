@@ -5,6 +5,32 @@ import { RepoDataProvider } from "@/components/repo/RepoDataProvider"
 import { RepoStats } from "@/components/repo/RepoStats"
 import { FileTree } from "@/components/repo/FileTree"
 import { FileContent } from "@/components/repo/FileContent"
+import { useRepoData } from "@/components/repo/RepoDataProvider"
+
+// Composant qui utilise le contexte pour rendre le contenu du fichier
+function FileContentWrapper() {
+  const { selectedFile } = useRepoData();
+  
+  if (!selectedFile || selectedFile.type !== 'file') {
+    return (
+      <div className="border rounded-md overflow-hidden bg-background p-4 flex items-center justify-center h-[calc(100vh-15rem)]">
+        <p className="text-muted-foreground">Sélectionnez un fichier pour afficher son contenu</p>
+      </div>
+    );
+  }
+  
+  // Calculer le nombre de lignes
+  const lines = selectedFile.content ? selectedFile.content.split('\n').length : 0;
+  
+  return (
+    <FileContent 
+      content={selectedFile.content || ""} 
+      path={selectedFile.path} 
+      size={selectedFile.size || 0}
+      lines={lines}
+    />
+  );
+}
 
 export default function AnalyzerPage() {
   const params = useParams()
@@ -29,7 +55,7 @@ export default function AnalyzerPage() {
               <FileTree />
             </div>
             <div className="lg:col-span-2">
-              <FileContent />
+              <FileContentWrapper />
             </div>
           </div>
         </RepoDataProvider>

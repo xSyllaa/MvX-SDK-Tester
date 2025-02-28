@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import type { Metadata } from "next"
 import { TopMenuBar } from "@/components/layout/top-menu-bar"
 import { Footer } from "@/components/layout/footer"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -21,9 +22,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <TopMenuBar />
-        {children}
-        <Footer />
+        <TooltipProvider>
+          <TopMenuBar />
+          {children}
+          <Footer />
+        </TooltipProvider>
       </body>
     </html>
   )
