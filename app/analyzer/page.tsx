@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { SDKCard } from "@/components/sdk-card"
 import { sdkList, type SDK, tagCategoryColors } from "@/data/sdkData"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { useGithubClone } from "@/app/hooks/useGithubClone"
+import { useGithubClone } from "@/hooks/useGithubClone"
 import { useRouter } from "next/navigation"
 
 export default function AnalyzerPage() {
