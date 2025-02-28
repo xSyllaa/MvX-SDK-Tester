@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { ExternalLink, Github } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { tagCategoryColors, type SDK, type TagCategory } from "@/data/sdks"
+import { tagCategoryColors, type SDK, type TagCategory } from "@/data/sdkData"
 
 interface SDKCardProps {
   sdk: SDK
