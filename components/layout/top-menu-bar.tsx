@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Search, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export function TopMenuBar() {
   const router = useRouter()
@@ -61,14 +62,16 @@ export function TopMenuBar() {
             <Link href="/" className="font-bold text-xl tracking-tight whitespace-nowrap">
               MvX SDK Analyzer
             </Link>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="ml-auto" 
-              onClick={toggleMobileMenu}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
+            <div className="ml-auto flex items-center gap-2">
+              <ThemeToggle />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={toggleMobileMenu}
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
           
           {/* Version desktop: 3 colonnes */}
@@ -99,7 +102,7 @@ export function TopMenuBar() {
             </div>
             
             {/* 3. Partie droite - Navigation */}
-            <div className="flex justify-end">
+            <div className="flex justify-end items-center">
               <nav className="flex items-center space-x-6 text-sm font-medium">
                 <Link href="/analyzer" className="transition-colors hover:text-foreground/80 text-foreground/60">
                   Analyzer
@@ -108,6 +111,9 @@ export function TopMenuBar() {
                   Components
                 </Link>
               </nav>
+              <div className="ml-6">
+                <ThemeToggle />
+              </div>
             </div>
           </div>
         </div>

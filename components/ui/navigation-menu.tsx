@@ -4,6 +4,7 @@ import { cva } from "class-variance-authority"
 import { ChevronDown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 const NavigationMenu = React.forwardRef<
   React.ElementRef<typeof NavigationMenuPrimitive.Root>,
@@ -115,6 +116,17 @@ const NavigationMenuIndicator = React.forwardRef<
 NavigationMenuIndicator.displayName =
   NavigationMenuPrimitive.Indicator.displayName
 
+// Composant pour ajouter facilement le toggle de thème dans un menu de navigation
+function ThemeToggleNavigationItem() {
+  return (
+    <NavigationMenuItem>
+      <div className="flex items-center justify-center px-2">
+        <ThemeToggle />
+      </div>
+    </NavigationMenuItem>
+  )
+}
+
 export {
   navigationMenuTriggerStyle,
   NavigationMenu,
@@ -125,4 +137,5 @@ export {
   NavigationMenuLink,
   NavigationMenuIndicator,
   NavigationMenuViewport,
+  ThemeToggleNavigationItem,
 }
