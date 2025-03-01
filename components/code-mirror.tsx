@@ -300,12 +300,12 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
       // Amélioration des styles de numérotation de ligne
       ".cm-lineNumbers": {
         zIndex: 20,
-        minWidth: "30px",                       // Largeur minimale pour les numéros
+        minWidth: "22px",                       // Réduit de 30px à 22px
         padding: "0",                           // Supprimer le padding
         margin: "0"                             // Supprimer la marge
       },
       ".cm-lineNumbers .cm-gutterElement": {
-        padding: "0 4px",                       // Réduire le padding
+        padding: "0 3px 0 2px",                  // Ajusté pour réduire l'espace
         minWidth: "2ch", 
         textAlign: "right",
         width: "100%"                           // Étendre à toute la largeur disponible
@@ -317,7 +317,8 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
         paddingRight: "0",                      // Supprimer l'espace à droite
         paddingLeft: "0",                       // Supprimer l'espace à gauche
         zIndex: 21,
-        margin: "0"                             // Supprimer les marges
+        margin: "0",                            // Supprimer les marges
+        minWidth: "18px"                        // Augmenté pour les flèches de pliage
       },
       ".cm-foldGutter-open:after": {
         content: '"▼"',
@@ -544,9 +545,9 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
         z-index: 20 !important;
         background-color: #f5f5f5 !important;
         border-right: 2px solid #e0e0e0 !important;
-        box-shadow: none !important; /* Suppression de l'ombre */
+        box-shadow: none !important;
         padding: 0 !important;
-        min-width: 36px !important; /* Réduction de la largeur minimale */
+        min-width: 40px !important;
       }
       
       /* Ligne active dans la gouttière */
@@ -554,10 +555,6 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
         background-color: rgba(0, 0, 0, 0.12) !important;
         color: #000 !important;
         font-weight: bold !important;
-      }
-      
-      /* S'assurer que la ligne active prend toute la largeur */
-      .cm-gutters .cm-activeLineGutter {
         width: 100% !important;
       }
       
@@ -569,37 +566,40 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
       
       /* Numéros de ligne */
       .cm-lineNumbers .cm-gutterElement {
-        padding: 0 2px 0 0 !important; /* Réduction du padding à droite uniquement */
+        padding: 0 3px 0 2px !important;
         text-align: right !important;
       }
       
       /* Flèches de pliage */
+      .cm-foldGutter {
+        min-width: 18px !important;             /* Augmenté pour les flèches de pliage */
+      }
+      
       .cm-foldGutter .cm-gutterElement {
         padding: 0 !important;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
+        width: 18px !important;                 /* Largeur spécifique pour le conteneur */
       }
       
       .cm-foldGutter-open, .cm-foldGutter-folded {
         cursor: pointer !important;
-        font-size: 16px !important; /* Taille augmentée */
-        width: 16px !important; /* Largeur augmentée */
-        height: 100% !important; /* Prend toute la hauteur de la ligne */
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
+        height: 100% !important;
       }
       
       .cm-foldGutter-open:after {
         content: "▼" !important;
-        font-size: 10px !important; /* Taille légèrement augmentée */
+        font-size: 11px !important;
         color: #555 !important;
       }
       
       .cm-foldGutter-folded:after {
         content: "►" !important;
-        font-size: 10px !important; /* Taille légèrement augmentée */
+        font-size: 11px !important;
         color: #555 !important;
       }
       
