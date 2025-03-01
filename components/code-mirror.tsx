@@ -101,35 +101,87 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
     }
   };
 
+  // Fonction pour récupérer tous les résultats de recherche triés par position
+  const getAllSearchMatches = (query: string, view: EditorView): Array<{from: number, to: number}> => {
+    if (!query || !view) return [];
+    
+    const matches: Array<{from: number, to: number}> = [];
+    const doc = view.state.doc;
+    
+    // Recherche insensible à la casse
+    const searchText = query.toLowerCase();
+    const fullText = doc.toString().toLowerCase();
+    
+    let pos = 0;
+    let idx = fullText.indexOf(searchText, pos);
+    
+    while (idx !== -1) {
+      // Utiliser l'index dans le texte en minuscules pour trouver la position réelle
+      const from = idx;
+      const to = from + searchText.length;
+      matches.push({ from, to });
+      
+      pos = to;
+      idx = fullText.indexOf(searchText, pos);
+    }
+    
+    // Trier par position dans le document
+    matches.sort((a, b) => a.from - b.from);
+    
+    return matches;
+  };
+
+  // Modifier les fonctions de navigation pour parcourir les résultats dans l'ordre des lignes
+  const navigateToMatch = (view: EditorView, direction: 'next' | 'previous'): SearchResult | null => {
+    if (!searchStateRef.current.lastQuery) return null;
+    
+    // Récupérer tous les résultats triés
+    const matches = getAllSearchMatches(searchStateRef.current.lastQuery, view);
+    const total = matches.length;
+    
+    if (total === 0) return null;
+    
+    // Récupérer la position actuelle
+    let current = searchStateRef.current.currentMatch;
+    
+    // Déterminer la nouvelle position en fonction de la direction
+    if (direction === 'next') {
+      current = current < total ? current + 1 : 1; // Boucler au début
+    } else {
+      current = current > 1 ? current - 1 : total; // Boucler à la fin
+    }
+    
+    // S'assurer que l'index est valide
+    if (current < 1 || current > matches.length) return null;
+    
+    // Naviguer vers le résultat
+    const match = matches[current - 1];
+    view.dispatch({
+      selection: EditorSelection.range(match.from, match.to),
+      scrollIntoView: true
+    });
+    
+    // Mettre à jour l'état
+    searchStateRef.current.currentMatch = current;
+    searchStateRef.current.totalMatches = total;
+    
+    return { current, total };
+  };
+
   // Fonction pour trouver et compter les résultats de recherche
   const findSearchResultsInComponent = (query: string, view: EditorView): SearchResult | null => {
     if (!query || !view) return null;
     
     try {
-      // Obtenir tous les résultats de recherche
-      const matches: Array<{from: number, to: number}> = [];
-      const doc = view.state.doc;
-      
-      // Recherche simple pour trouver toutes les occurrences
-      let pos = 0;
-      let content = doc.sliceString(0, doc.length);
-      let idx = content.indexOf(query);
-      
-      while (idx !== -1 && pos < doc.length) {
-        const from = pos + idx;
-        const to = from + query.length;
-        matches.push({ from, to });
-        
-        pos = to;
-        content = doc.sliceString(pos, doc.length);
-        idx = content.indexOf(query);
-      }
+      // Récupérer tous les résultats triés
+      const matches = getAllSearchMatches(query, view);
       
       // Mettre à jour le compteur total
-      searchStateRef.current.totalMatches = matches.length;
+      const total = matches.length;
+      searchStateRef.current.totalMatches = total;
       
       // Si aucun résultat, retourner 0/0
-      if (matches.length === 0) {
+      if (total === 0) {
         return { current: 0, total: 0 };
       }
       
@@ -145,17 +197,31 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
         }
       }
       
-      // Si le curseur n'est sur aucun résultat, utiliser le premier résultat
-      if (currentPos === 0 && matches.length > 0) {
-        currentPos = 1;
-        // Positionner le curseur sur le premier résultat
+      // Si le curseur n'est sur aucun résultat, trouver le résultat le plus proche en dessous
+      if (currentPos === 0) {
+        // Trouver le premier résultat après la position actuelle du curseur
+        for (let i = 0; i < matches.length; i++) {
+          if (matches[i].from >= cursor) {
+            currentPos = i + 1;
+            break;
+          }
+        }
+        
+        // Si aucun résultat n'est trouvé après le curseur, prendre le premier
+        if (currentPos === 0) {
+          currentPos = 1;
+        }
+        
+        // Positionner le curseur sur ce résultat
+        const match = matches[currentPos - 1];
         view.dispatch({
-          selection: EditorSelection.range(matches[0].from, matches[0].to)
+          selection: EditorSelection.range(match.from, match.to),
+          scrollIntoView: true
         });
       }
       
       searchStateRef.current.currentMatch = currentPos;
-      return { current: currentPos, total: matches.length };
+      return { current: currentPos, total };
     } catch (error) {
       console.error("Erreur lors de la recherche:", error);
       return null;
@@ -194,15 +260,28 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
       ".cm-content": {
         caretColor: "#5cadff",
         fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace",
-        color: "#000000",                         // Default text color in black for readability
+        color: "#000000",                        
+        marginLeft: "8px"                       // Marge pour séparer du code de la gouttière
       },
       ".cm-gutters": {
-        backgroundColor: "transparent",
+        backgroundColor: "#f5f5f5",              // Gris clair pour les gouttières
         border: "none",
-        color: "#858585"
+        borderRight: "2px solid #e0e0e0",        // Bordure plus visible
+        color: "#666666",                        // Couleur plus foncée pour les numéros
+        position: "sticky",                      
+        left: 0,                                
+        zIndex: 20,                             
+        minWidth: "40px",                        // Largeur minimale
+        paddingRight: "0",                       // Supprimer l'espace à droite
+        boxShadow: "3px 0 6px rgba(0, 0, 0, 0.15)", // Ombre projetée
+        display: "flex"                          // Aligner les gouttières horizontalement
       },
       ".cm-activeLineGutter": {
-        backgroundColor: "rgba(0, 0, 0, 0.1)"
+        backgroundColor: "rgba(0, 0, 0, 0.12)",  // Plus visible pour la ligne active
+        fontWeight: "bold",                      // Gras pour le numéro de ligne active
+        width: "100%",                          // Étendre à toute la largeur
+        margin: "0",                            // Supprimer les marges
+        padding: "0"                            // Supprimer les paddings
       },
       ".cm-selectionMatch": {
         backgroundColor: "rgba(181, 213, 255, 0.5)"
@@ -211,7 +290,53 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
         padding: "0 4px"
       },
       ".cm-activeLine": {
-        backgroundColor: "rgba(0, 0, 0, 0.1)"
+        backgroundColor: "rgba(0, 0, 0, 0.07)"   // Légèrement plus foncé
+      },
+      ".cm-scroller": {
+        overflow: "auto",      
+        fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace",
+        backgroundColor: "#ffffff"               // Fond blanc pour le code
+      },
+      // Amélioration des styles de numérotation de ligne
+      ".cm-lineNumbers": {
+        zIndex: 20,
+        minWidth: "30px",                       // Largeur minimale pour les numéros
+        padding: "0",                           // Supprimer le padding
+        margin: "0"                             // Supprimer la marge
+      },
+      ".cm-lineNumbers .cm-gutterElement": {
+        padding: "0 4px",                       // Réduire le padding
+        minWidth: "2ch", 
+        textAlign: "right",
+        width: "100%"                           // Étendre à toute la largeur disponible
+      },
+      // Styles spécifiques pour les flèches de pliage
+      ".cm-foldGutter": {
+        position: "sticky",
+        left: "0",
+        paddingRight: "0",                      // Supprimer l'espace à droite
+        paddingLeft: "0",                       // Supprimer l'espace à gauche
+        zIndex: 21,
+        margin: "0"                             // Supprimer les marges
+      },
+      ".cm-foldGutter-open:after": {
+        content: '"▼"',
+        fontSize: "10px",
+        color: "#555"
+      },
+      ".cm-foldGutter-folded:after": {
+        content: '"►"',
+        fontSize: "10px",
+        color: "#555"
+      },
+      ".cm-foldGutter-open, .cm-foldGutter-folded": {
+        fontSize: "16px", 
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: "16px",
+        height: "16px",
+        cursor: "pointer"
       },
       "&.cm-focused .cm-cursor": {
         borderLeftWidth: "2px",
@@ -340,46 +465,14 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
       
       findNext: () => {
         if (editorViewRef.current) {
-          const view = editorViewRef.current;
-          // Utiliser la commande CodeMirror pour trouver le prochain résultat
-          findNext(view);
-          
-          // Mettre à jour les informations de recherche après un court délai
-          setTimeout(() => {
-            const results = findSearchResultsInComponent(searchStateRef.current.lastQuery, view);
-            if (results) {
-              searchStateRef.current.currentMatch = results.current;
-              searchStateRef.current.totalMatches = results.total;
-            }
-          }, 10);
-          
-          // Retourner les informations de recherche actuelles
-          const current = searchStateRef.current.currentMatch;
-          const total = searchStateRef.current.totalMatches;
-          return current > 0 ? { current, total } : null;
+          return navigateToMatch(editorViewRef.current, 'next');
         }
         return null;
       },
       
       findPrevious: () => {
         if (editorViewRef.current) {
-          const view = editorViewRef.current;
-          // Utiliser la commande CodeMirror pour trouver le résultat précédent
-          findPrevious(view);
-          
-          // Mettre à jour les informations de recherche après un court délai
-          setTimeout(() => {
-            const results = findSearchResultsInComponent(searchStateRef.current.lastQuery, view);
-            if (results) {
-              searchStateRef.current.currentMatch = results.current;
-              searchStateRef.current.totalMatches = results.total;
-            }
-          }, 10);
-          
-          // Retourner les informations de recherche actuelles
-          const current = searchStateRef.current.currentMatch;
-          const total = searchStateRef.current.totalMatches;
-          return current > 0 ? { current, total } : null;
+          return navigateToMatch(editorViewRef.current, 'previous');
         }
         return null;
       },
@@ -423,6 +516,98 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
     }
   }, [element, value, filename, onSearchToggle])
 
-  return <div ref={setElement} style={{ height }} className="overflow-auto font-mono text-sm relative" />
+  return <div ref={setElement} style={{ height }} className="overflow-auto font-mono text-sm relative">
+    <style jsx global>{`
+      .cm-editor {
+        height: 100%;
+        width: 100%;
+        overflow: auto;
+      }
+      .cm-scroller {
+        overflow: auto;
+        background-color: white;
+      }
+      .cm-content {
+        font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+        font-size: 14px;
+        padding: 0 8px;
+        word-break: normal;
+        overflow-x: auto;
+        white-space: pre;
+        margin-left: 8px;
+      }
+      
+      /* Zone des numéros de ligne et flèches de pliage */
+      .cm-gutters {
+        position: sticky !important;
+        left: 0 !important;
+        z-index: 20 !important;
+        background-color: #f5f5f5 !important;
+        border-right: 2px solid #e0e0e0 !important;
+        box-shadow: none !important; /* Suppression de l'ombre */
+        padding: 0 !important;
+        min-width: 36px !important; /* Réduction de la largeur minimale */
+      }
+      
+      /* Ligne active dans la gouttière */
+      .cm-activeLineGutter {
+        background-color: rgba(0, 0, 0, 0.12) !important;
+        color: #000 !important;
+        font-weight: bold !important;
+      }
+      
+      /* S'assurer que la ligne active prend toute la largeur */
+      .cm-gutters .cm-activeLineGutter {
+        width: 100% !important;
+      }
+      
+      /* Réduire les espaces entre les éléments de gouttière */
+      .cm-gutter {
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      
+      /* Numéros de ligne */
+      .cm-lineNumbers .cm-gutterElement {
+        padding: 0 2px 0 0 !important; /* Réduction du padding à droite uniquement */
+        text-align: right !important;
+      }
+      
+      /* Flèches de pliage */
+      .cm-foldGutter .cm-gutterElement {
+        padding: 0 !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+      }
+      
+      .cm-foldGutter-open, .cm-foldGutter-folded {
+        cursor: pointer !important;
+        font-size: 16px !important; /* Taille augmentée */
+        width: 16px !important; /* Largeur augmentée */
+        height: 100% !important; /* Prend toute la hauteur de la ligne */
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+      
+      .cm-foldGutter-open:after {
+        content: "▼" !important;
+        font-size: 10px !important; /* Taille légèrement augmentée */
+        color: #555 !important;
+      }
+      
+      .cm-foldGutter-folded:after {
+        content: "►" !important;
+        font-size: 10px !important; /* Taille légèrement augmentée */
+        color: #555 !important;
+      }
+      
+      /* Ligne active dans l'éditeur */
+      .cm-activeLine {
+        background-color: rgba(0, 0, 0, 0.07) !important;
+      }
+    `}</style>
+  </div>
 }
 
