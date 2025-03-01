@@ -283,4 +283,20 @@ export const sdkList: SDK[] = [
       { name: "multiversx", category: TagCategory.OWNER },
     ],
   },
+  {
+    name: "SpaceKit",
+    description: "The first smart contract framework built for Swift, bringing a powerful, intuitive, and high-level approach to blockchain development.",
+    github_link: "https://github.com/gfusee/SpaceKit",
+    tags: [
+      { name: "Swift", category: TagCategory.LANGUAGE },
+      { name: "Smart Contracts", category: TagCategory.PURPOSE },
+      { name: "Framework", category: TagCategory.TECHNOLOGY },
+      { name: "Blockchain", category: TagCategory.TECHNOLOGY },
+      { name: "macOS", category: TagCategory.TECHNOLOGY },
+      { name: "Linux", category: TagCategory.TECHNOLOGY },
+      { name: "Windows", category: TagCategory.TECHNOLOGY },
+      { name: "SpaceVM", category: TagCategory.TECHNOLOGY },
+      { name: "gfusee", category: TagCategory.OWNER }
+    ]
+  }
 ];
