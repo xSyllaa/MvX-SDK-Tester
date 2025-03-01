@@ -5,11 +5,12 @@ import { useRepoData } from "@/components/repo/RepoDataProvider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Play, Plus, X, Code, HelpCircle } from "lucide-react"
+import { Play, Plus, X, Code, HelpCircle, AlertTriangle } from "lucide-react"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CodeMirror } from "@/components/code-mirror"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 type Endpoint = {
   path: string
@@ -19,9 +20,17 @@ type Endpoint = {
   body?: boolean
   source?: string
   lineNumber?: number
+  pathVariables?: string[]
 }
 
 type RequestParam = {
+  name: string
+  value: string
+  required?: boolean
+  isPathVariable?: boolean
+}
+
+type PathVariable = {
   name: string
   value: string
 }
@@ -31,6 +40,7 @@ export function EndpointsTester() {
   const [endpoints, setEndpoints] = useState<Endpoint[]>([])
   const [selectedEndpoint, setSelectedEndpoint] = useState<Endpoint | null>(null)
   const [requestParams, setRequestParams] = useState<RequestParam[]>([])
+  const [pathVariables, setPathVariables] = useState<PathVariable[]>([])
   const [requestBody, setRequestBody] = useState("")
   const [requestHeaders, setRequestHeaders] = useState<RequestParam[]>([
     { name: "Content-Type", value: "application/json" }
@@ -39,6 +49,9 @@ export function EndpointsTester() {
   const [isLoading, setIsLoading] = useState(false)
   const [responseStatus, setResponseStatus] = useState("")
   const [endpointType, setEndpointType] = useState<"api" | "sdk">("api")
+  const [sdkInitialized, setSdkInitialized] = useState(false)
+  const [baseApiUrl, setBaseApiUrl] = useState("https://api.xoxno.com")
+  const [constructedUrl, setConstructedUrl] = useState<string>("")
 
   useEffect(() => {
     // Si le fichier change, analyser le fichier pour trouver les endpoints
@@ -49,16 +62,46 @@ export function EndpointsTester() {
       if (detectedEndpoints.length > 0) {
         const type = detectedEndpoints[0].path.startsWith('/') ? "api" : "sdk";
         setEndpointType(type);
+        
+        // Vérifier s'il s'agit d'un SDK qui requiert une initialisation
+        if (type === "sdk" && (selectedFile.path.includes("xoxno") || selectedFile.content.includes("XOXNOClient"))) {
+          initializeSDK();
+        }
       }
       
       setEndpoints(detectedEndpoints)
       setSelectedEndpoint(null)
       setRequestParams([])
+      setPathVariables([])
       setRequestBody("")
       setResponseData("")
       setResponseStatus("")
     }
   }, [selectedFile])
+
+  // Fonction pour initialiser le SDK
+  const initializeSDK = async () => {
+    // Dans un environnement réel, cela devrait appeler réellement l'initialisation du SDK
+    // Ici nous simulons juste l'initialisation
+    try {
+      // Test rapide pour vérifier si l'API est accessible
+      const response = await fetch(`${baseApiUrl}/status`, { 
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      if (response.ok) {
+        setSdkInitialized(true);
+        console.log("SDK initialized successfully");
+      } else {
+        console.error("Failed to initialize SDK - API unreachable");
+        setSdkInitialized(false);
+      }
+    } catch (error) {
+      console.error("Error initializing SDK:", error);
+      setSdkInitialized(false);
+    }
+  }
 
   // Détermine le type de fichier en fonction de l'extension
   const getFileType = (path: string): string => {
@@ -132,6 +175,14 @@ export function EndpointsTester() {
         // Extraire les paramètres requis
         const paramList = parameters.split(',').map(p => p.trim().split(':')[0].trim()).filter(p => p);
         
+        // Détecter les variables de chemin (comme ${collection})
+        const pathVarRegex = /\$\{([^}]+)\}/g;
+        const pathVariables: string[] = [];
+        let pathVarMatch;
+        while ((pathVarMatch = pathVarRegex.exec(endpoint)) !== null) {
+          pathVariables.push(pathVarMatch[1]);
+        }
+        
         // Calculer le numéro de ligne approximatif
         const lines = content.slice(0, match.index).split('\n');
         const lineNumber = lines.length;
@@ -174,7 +225,8 @@ export function EndpointsTester() {
           params: paramList,
           body: hasRequestBody,
           source: methodName,
-          lineNumber: lineNumber
+          lineNumber: lineNumber,
+          pathVariables: pathVariables.length > 0 ? pathVariables : undefined
         });
       }
       
@@ -184,10 +236,19 @@ export function EndpointsTester() {
         const endpoint = match[1];
         if (!detectedEndpoints.some(e => e.path === endpoint)) {
           // Éviter les doublons
+          // Détecter les variables de chemin
+          const pathVarRegex = /\$\{([^}]+)\}/g;
+          const pathVariables: string[] = [];
+          let pathVarMatch;
+          while ((pathVarMatch = pathVarRegex.exec(endpoint)) !== null) {
+            pathVariables.push(pathVarMatch[1]);
+          }
+          
           detectedEndpoints.push({
             path: endpoint,
             method: "GET",
-            description: "API URL detected in code"
+            description: "API URL detected in code",
+            pathVariables: pathVariables.length > 0 ? pathVariables : undefined
           });
         }
       }
@@ -197,10 +258,18 @@ export function EndpointsTester() {
   }
 
   const addRequestParam = () => {
+    // Vérifier si l'ajout de paramètres est autorisé
+    if (selectedEndpoint?.params && requestParams.length >= selectedEndpoint.params.filter(p => p !== 'this' && p !== 'args' && !p.includes('{')).length) {
+      return; // Ne pas ajouter de paramètres si tous les paramètres prévus sont déjà ajoutés
+    }
     setRequestParams([...requestParams, { name: "", value: "" }])
   }
 
   const removeRequestParam = (index: number) => {
+    // Ne pas supprimer un paramètre requis
+    if (requestParams[index].required) {
+      return;
+    }
     const newParams = [...requestParams]
     newParams.splice(index, 1)
     setRequestParams(newParams)
@@ -210,6 +279,9 @@ export function EndpointsTester() {
     const newParams = [...requestParams]
     newParams[index][field] = newValue
     setRequestParams(newParams)
+    
+    // Reconstruire l'URL après mise à jour du paramètre
+    updateConstructedUrl(newParams);
   }
 
   const addRequestHeader = () => {
@@ -244,12 +316,20 @@ export function EndpointsTester() {
     setResponseStatus("")
     
     try {
-      // Construire l'URL avec les paramètres de requête
+      // Construire l'URL en remplaçant d'abord les variables de chemin
       let url = selectedEndpoint.path
+      
+      // Remplacer les variables de chemin
+      if (pathVariables.length > 0) {
+        pathVariables.forEach(variable => {
+          const regex = new RegExp(`\\$\\{${variable.name}\\}`, 'g');
+          url = url.replace(regex, encodeURIComponent(variable.value));
+        });
+      }
       
       // Si c'est un endpoint SDK, ajouter un préfixe d'API
       if (endpointType === "sdk") {
-        url = `https://api.xoxno.com${url}`;
+        url = `${baseApiUrl}${url}`;
       }
       
       // Ajouter les paramètres de requête s'il y en a
@@ -276,7 +356,9 @@ export function EndpointsTester() {
       const options: RequestInit = {
         method: selectedEndpoint.method,
         headers,
-        credentials: "include"
+        credentials: "include",
+        cache: "no-store",
+        next: { revalidate: 0 }
       }
       
       // Ajouter le corps pour les méthodes qui le supportent
@@ -284,21 +366,40 @@ export function EndpointsTester() {
         options.body = requestBody
       }
       
+      console.log(`Sending request to: ${url}`);
+      
       // Envoyer la requête
       const response = await fetch(url, options)
       
-      // Récupérer les données de la réponse
-      let responseText = ""
-      
-      try {
-        const responseJson = await response.json()
-        responseText = JSON.stringify(responseJson, null, 2)
-      } catch (e) {
-        responseText = await response.text()
-      }
-      
-      setResponseData(responseText)
+      // Définir le statut de la réponse
       setResponseStatus(`${response.status} ${response.statusText}`)
+      
+      // Récupérer les données de la réponse uniquement si c'est un succès (2xx)
+      if (response.ok) {
+        let responseText = ""
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const responseJson = await response.json()
+            responseText = JSON.stringify(responseJson, null, 2)
+          } catch (e) {
+            responseText = await response.text()
+          }
+        } else {
+          responseText = await response.text()
+        }
+        
+        // Ne pas afficher le HTML en cas d'erreur
+        if (responseText.startsWith('<!DOCTYPE html>') || responseText.startsWith('<html>')) {
+          setResponseData("Response is HTML and won't be displayed")
+        } else {
+          setResponseData(responseText)
+        }
+      } else {
+        // En cas d'erreur, afficher un message simple plutôt que le contenu HTML
+        setResponseData(`Request failed with status: ${response.status}`)
+      }
     } catch (error) {
       setResponseData(`Error: ${error instanceof Error ? error.message : String(error)}`)
       setResponseStatus("Error")
@@ -329,11 +430,26 @@ export function EndpointsTester() {
   const generateSuggestedParams = (endpoint: Endpoint) => {
     const params: RequestParam[] = [];
     
+    // Ajouter d'abord les variables de chemin comme paramètres
+    if (endpoint.pathVariables && endpoint.pathVariables.length > 0) {
+      for (const varName of endpoint.pathVariables) {
+        params.push({ 
+          name: varName, 
+          value: "", 
+          required: true,
+          isPathVariable: true 
+        });
+      }
+    }
+    
     // Si c'est un SDK endpoint et qu'il a des paramètres déterminés
     if (endpoint.params && endpoint.params.length > 0) {
       for (const param of endpoint.params) {
         if (param !== 'this' && param !== 'args' && !param.includes('{')) {
-          params.push({ name: param, value: "" });
+          // Vérifier si ce paramètre n'est pas déjà dans la liste (pour éviter les doublons)
+          if (!params.some(p => p.name === param)) {
+            params.push({ name: param, value: "", required: true });
+          }
         }
       }
     }
@@ -343,48 +459,94 @@ export function EndpointsTester() {
       // Extraire les paramètres déjà dans l'URL
       const urlParams = new URLSearchParams(endpoint.path.split('?')[1]);
       urlParams.forEach((value, key) => {
-        params.push({ name: key, value });
+        // Éviter les doublons avec les variables de chemin
+        if (!params.some(p => p.name === key)) {
+          params.push({ name: key, value, required: true });
+        }
       });
     }
     
     // Ajouter des paramètres suggérés selon le type d'endpoint
     if (endpoint.path.includes('/query') || endpoint.path.includes('/search')) {
       if (!params.some(p => p.name === 'top')) {
-        params.push({ name: 'top', value: '10' });
+        params.push({ name: 'top', value: '10', required: true });
       }
       if (!params.some(p => p.name === 'skip')) {
-        params.push({ name: 'skip', value: '0' });
+        params.push({ name: 'skip', value: '0', required: true });
       }
     }
     
     return params;
   }
 
-  // Quand un endpoint est sélectionné, générer des suggestions
+  // Fonction pour construire et mettre à jour l'URL en temps réel
+  const updateConstructedUrl = (params = requestParams) => {
+    if (!selectedEndpoint) return;
+    
+    let url = selectedEndpoint.path;
+    
+    // Remplacer les variables de chemin
+    params.forEach(param => {
+      if (param.isPathVariable && param.value) {
+        const regex = new RegExp(`\\$\\{${param.name}\\}`, 'g');
+        url = url.replace(regex, encodeURIComponent(param.value));
+      }
+    });
+    
+    // Si c'est un endpoint SDK, ajouter un préfixe d'API
+    if (endpointType === "sdk") {
+      url = `${baseApiUrl}${url}`;
+    }
+    
+    // Ajouter les paramètres de requête s'il y en a
+    const queryParams = params
+      .filter(param => !param.isPathVariable && param.name.trim() !== "" && param.value.trim() !== "")
+      .map(param => `${encodeURIComponent(param.name)}=${encodeURIComponent(param.value)}`)
+      .join("&");
+    
+    if (queryParams) {
+      url += (url.includes('?') ? '&' : '?') + queryParams;
+    }
+    
+    setConstructedUrl(url);
+  }
+
+  // Mettre à jour handleEndpointSelection pour construire l'URL initiale après sélection d'un endpoint
   const handleEndpointSelection = (value: string) => {
-    const [method, ...pathParts] = value.split("-")
-    const path = pathParts.join("-")
-    const endpoint = { method, path };
+    const [method, ...pathParts] = value.split("-");
+    const path = pathParts.join("-");
+    const endpointBasic = { method, path } as Endpoint;
     
     // Trouver l'endpoint complet avec ses metadonnées
-    const fullEndpoint = endpoints.find(e => e.method === method && e.path === path) || endpoint;
+    const fullEndpoint = endpoints.find(e => e.method === method && e.path === path) || endpointBasic;
     
     setSelectedEndpoint(fullEndpoint);
     
-    // Générer des paramètres suggérés
+    // Générer des paramètres suggérés qui incluent maintenant les variables de chemin
     const suggestedParams = generateSuggestedParams(fullEndpoint);
-    if (suggestedParams.length > 0) {
-      setRequestParams(suggestedParams);
-    } else {
-      setRequestParams([]);
-    }
+    setRequestParams(suggestedParams);
+    
+    // Vider la liste des variables de chemin car elles sont maintenant intégrées aux requestParams
+    setPathVariables([]);
     
     // Générer un exemple de corps de requête si nécessaire
-    if (fullEndpoint.body) {
+    if (fullEndpoint.body === true) {
       setRequestBody(generateRequestBodyExample());
     } else {
       setRequestBody("");
     }
+    
+    // Après avoir configuré les paramètres, construire l'URL
+    setTimeout(() => {
+      updateConstructedUrl(suggestedParams);
+    }, 0);
+  }
+  
+  // Changer l'URL de base de l'API
+  const handleApiUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setBaseApiUrl(e.target.value);
+    // Mettre à jour l'URL après changement de l'URL de base
+    updateConstructedUrl();
   }
 
   return (
@@ -407,6 +569,41 @@ export function EndpointsTester() {
         </div>
       ) : (
         <div className="p-4">
+          {endpointType === "sdk" && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 mr-2">
+                  <label className="text-sm font-medium mb-1 block">
+                    API Base URL:
+                  </label>
+                  <Input 
+                    value={baseApiUrl}
+                    onChange={handleApiUrlChange}
+                    placeholder="https://api.xoxno.com"
+                  />
+                </div>
+                <div className="flex-none mt-6">
+                  <Button 
+                    onClick={initializeSDK}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Initialize SDK
+                  </Button>
+                </div>
+              </div>
+              {!sdkInitialized && (
+                <Alert className="mt-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>SDK not initialized</AlertTitle>
+                  <AlertDescription>
+                    The SDK needs to be initialized before making requests. Initialize it or some requests may fail.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+          
           <div className="mb-4">
             <div className="flex justify-between items-center mb-1">
               <label className="text-sm font-medium block">
@@ -471,14 +668,19 @@ export function EndpointsTester() {
           
           {selectedEndpoint && (
             <>
-              <Tabs defaultValue="params">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="params">Query Parameters</TabsTrigger>
-                  <TabsTrigger value="headers">Headers</TabsTrigger>
-                  <TabsTrigger value="body">Body</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="params" className="space-y-4">
+              {/* Affichage de la requête construite */}
+              <div className="mb-4">
+                <h3 className="text-sm font-medium mb-2">Request URL</h3>
+                <div className="p-3 bg-muted/20 border rounded-md overflow-x-auto">
+                  <code className="text-xs font-mono whitespace-nowrap">
+                    <span className="text-blue-600 font-semibold">{selectedEndpoint.method}</span> {constructedUrl}
+                  </code>
+                </div>
+              </div>
+              
+              <div className="mb-4">
+                <h3 className="text-sm font-medium mb-2">Parameters</h3>
+                <div className="space-y-4">
                   {requestParams.map((param, index) => (
                     <div key={index} className="flex gap-2 items-center">
                       <Input
@@ -486,91 +688,18 @@ export function EndpointsTester() {
                         value={param.name}
                         onChange={(e) => updateRequestParam(index, 'name', e.target.value)}
                         className="flex-1"
+                        readOnly={param.required}
                       />
                       <Input
                         placeholder="Value"
                         value={param.value}
                         onChange={(e) => updateRequestParam(index, 'value', e.target.value)}
-                        className="flex-1"
+                        className={`flex-1 ${param.isPathVariable ? 'border-blue-300' : ''}`}
                       />
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={() => removeRequestParam(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
                     </div>
                   ))}
-                  
-                  <Button 
-                    variant="outline" 
-                    onClick={addRequestParam}
-                    className="w-full"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Parameter
-                  </Button>
-                </TabsContent>
-                
-                <TabsContent value="headers" className="space-y-4">
-                  {requestHeaders.map((header, index) => (
-                    <div key={index} className="flex gap-2 items-center">
-                      <Input
-                        placeholder="Header name"
-                        value={header.name}
-                        onChange={(e) => updateRequestHeader(index, 'name', e.target.value)}
-                        className="flex-1"
-                      />
-                      <Input
-                        placeholder="Value"
-                        value={header.value}
-                        onChange={(e) => updateRequestHeader(index, 'value', e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={() => removeRequestHeader(index)}
-                        disabled={index === 0 && header.name === "Content-Type"}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  
-                  <Button 
-                    variant="outline" 
-                    onClick={addRequestHeader}
-                    className="w-full"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Header
-                  </Button>
-                </TabsContent>
-                
-                <TabsContent value="body">
-                  <div className="space-y-2">
-                    <div className="flex justify-end">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setRequestBody(formatJson(requestBody))}
-                        className="text-xs"
-                      >
-                        <Code className="h-3 w-3 mr-1" />
-                        Format JSON
-                      </Button>
-                    </div>
-                    <Textarea
-                      placeholder={`{\n  "key": "value"\n}`}
-                      value={requestBody}
-                      onChange={(e) => setRequestBody(e.target.value)}
-                      className="font-mono h-40"
-                    />
-                  </div>
-                </TabsContent>
-              </Tabs>
+                </div>
+              </div>
               
               <div className="mt-6">
                 <Button 
