@@ -118,113 +118,27 @@ function useEndpointDetection(selectedFile: any) {
         try {
           const startTime = performance.now();
           
-          // Essayer d'importer directement le SDK XOXNO maintenant qu'il est installé
-          try {
-            const { XOXNOClient } = await import('@xoxno/sdk-js');
-            console.log("SDK XOXNO importé avec succès");
-            
-            // Initialiser le SDK selon la documentation
-            XOXNOClient.init({
-              apiUrl: apiUrl
-            });
-            
-            // Rendre le SDK disponible globalement pour un accès facile
-            (window as any).XOXNOClient = XOXNOClient;
-            
-            const endTime = performance.now();
-            console.log(`✅ SDK XOXNO initialisé avec succès en ${(endTime - startTime).toFixed(2)}ms`);
-            console.log(`Configuration: URL API = ${apiUrl}`);
-            console.groupEnd();
-            return true;
-          } catch (sdkImportError) {
-            console.warn("Impossible d'importer le SDK XOXNO:", sdkImportError);
-            console.log("Fallback sur la simulation du SDK");
-            
-            // Créer un mock complet du SDK pour tests (code de simulation existant)
-            const createMockSDK = () => {
-              // Classe de base pour les modules
-              class BaseModule {
-                constructor() {}
-              }
-              
-              // Simulation du module Collection
-              class CollectionModule extends BaseModule {
-                async getCollectionProfile(collectionId: string) {
-                  console.log(`[MOCK] CollectionModule.getCollectionProfile appelé avec: ${collectionId}`);
-                  return {
-                    collection: collectionId,
-                    name: "Collection Simulée",
-                    description: "Ceci est une collection simulée pour les tests",
-                    timestamp: new Date().toISOString(),
-                    mockData: true
-                  };
-                }
-                
-                async getFloorPrice(collectionId: string, token = 'EGLD') {
-                  console.log(`[MOCK] CollectionModule.getFloorPrice appelé avec: ${collectionId}, token: ${token}`);
-                  return {
-                    collection: collectionId,
-                    floorPrice: 0.5,
-                    currency: token,
-                    timestamp: new Date().toISOString(),
-                    mockData: true
-                  };
-                }
-              }
-              
-              // Simulation du module NFT
-              class NFTModule extends BaseModule {
-                async getDailyTrending(params: any = {}) {
-                  console.log(`[MOCK] NFTModule.getDailyTrending appelé avec:`, params);
-                  return {
-                    nfts: Array(5).fill(0).map((_, i) => ({
-                      id: `NFT-${i}`,
-                      name: `NFT Trending #${i}`,
-                      collection: "MOCK-abcdef",
-                      price: Math.random() * 10,
-                      mockData: true
-                    })),
-                    timestamp: new Date().toISOString()
-                  };
-                }
-              }
-              
-              // Créer l'objet global XOXNOClient
-              const mockXOXNOClient = {
-                apiUrl: apiUrl,
-                isInitialized: false,
-                
-                init: function(config?: any) {
-                  this.apiUrl = config?.apiUrl || apiUrl;
-                  this.isInitialized = true;
-                  console.log(`[MOCK] XOXNOClient.init appelé avec:`, config || "config par défaut");
-                  return true;
-                }
-              };
-              
-              // Exposer les modules
-              (window as any).CollectionModule = CollectionModule;
-              (window as any).NFTModule = NFTModule;
-              
-              return mockXOXNOClient;
-            };
-            
-            // Créer et définir le SDK simulé
-            const XOXNOClient = createMockSDK();
-            (window as any).XOXNOClient = XOXNOClient;
-            console.log("[MOCK] SDK simulé créé avec les modules: CollectionModule, NFTModule");
-            
-            // Initialiser le client simulé
-            XOXNOClient.init({
-              apiUrl: apiUrl
-            });
-            
-            const endTime = performance.now();
-            console.log(`✅ SDK simulé initialisé avec succès en ${(endTime - startTime).toFixed(2)}ms`);
-            console.log(`Configuration: URL API = ${apiUrl}`);
-            console.groupEnd();
-            return true;
-          }
+          // Initialiser le SDK XOXNO selon la documentation officielle
+          const { XOXNOClient } = await import('@xoxno/sdk-js');
+          console.log("SDK XOXNO importé avec succès");
+          
+          // Initialiser le client globalement comme recommandé dans la documentation
+          XOXNOClient.init({
+            apiUrl: apiUrl
+          });
+          
+          console.log("XOXNOClient initialisé avec succès");
+          
+          // Vérifier que l'initialisation a fonctionné en créant un module de test
+          const { CollectionModule } = await import('@xoxno/sdk-js');
+          const testModule = new CollectionModule();
+          console.log("Test du module Collection réussi");
+          
+          const endTime = performance.now();
+          console.log(`✅ SDK XOXNO initialisé avec succès en ${(endTime - startTime).toFixed(2)}ms`);
+          console.log(`Configuration: URL API = ${apiUrl}`);
+          console.groupEnd();
+          return true;
         } catch (sdkError: any) {
           console.error("Erreur lors de l'initialisation du SDK:", sdkError);
           throw new Error(`Erreur lors de l'initialisation du SDK: ${sdkError.message || 'Erreur inconnue'}`);
@@ -367,94 +281,85 @@ function useApiRequest() {
       console.log(`En-têtes:`, headers);
       if (body) console.log(`Corps:`, body);
       
-      // Pour les endpoints SDK, vérifier si on peut utiliser directement le SDK
-      if (url.includes('api.xoxno.com') && typeof window !== 'undefined') {
+      // Pour les endpoints SDK, utiliser directement les méthodes du SDK
+      if (url.includes('api.xoxno.com') || url.includes('/nfts/') || url.includes('/collection/')) {
         try {
-          console.log("Tentative d'utilisation du SDK XOXNO");
+          console.log("Utilisation du SDK XOXNO");
+          
           // Extraire le chemin et les paramètres de l'URL
           const urlObj = new URL(url);
           const path = urlObj.pathname;
           
-          // Vérifier si le SDK réel est disponible
-          const XOXNOClient = (window as any).XOXNOClient;
-          if (!XOXNOClient || !XOXNOClient.isInitialized) {
-            throw new Error("SDK XOXNO non initialisé");
-          }
-          
-          // Utiliser les modules du SDK pour effectuer la requête
-          let result;
+          // Préparer les paramètres communs
           const startTime = performance.now();
-          const isMock = !!(window as any).CollectionModule; // Vérifier si on utilise le mock
+          let result;
           
-          if (path.includes('/collection/')) {
-            // Vérifier si on peut accéder au module Collection du SDK réel
-            let CollectionModule;
-            let collection;
-            
-            if (isMock) {
-              // Utiliser directement le CollectionModule simulé
-              CollectionModule = (window as any).CollectionModule;
-              collection = new CollectionModule();
-              console.log("[MOCK] Utilisation du CollectionModule simulé");
-            } else {
-              // Utiliser le SDK réel
-              try {
-                const sdk = await import('@xoxno/sdk-js');
-                CollectionModule = sdk.CollectionModule;
-                collection = new CollectionModule();
-                console.log("Utilisation du CollectionModule du SDK réel");
-              } catch (err) {
-                console.warn("Erreur lors de l'import du CollectionModule:", err);
-                throw new Error("Module Collection non disponible");
-              }
-            }
-            
-            if (path.includes('/profile')) {
-              // Extraire l'identifiant de collection
-              const collectionId = path.split('/collection/')[1].split('/profile')[0];
-              console.log(`Appel SDK: collection.getCollectionProfile('${collectionId}')`);
-              result = await collection.getCollectionProfile(collectionId);
-            } else if (path.includes('/floor-price')) {
-              // Extraire l'identifiant de collection
-              const collectionId = path.split('/collection/')[1].split('/floor-price')[0];
-              // Extraire les paramètres de requête
-              const params = new URLSearchParams(urlObj.search);
-              const token = params.get('token') || 'EGLD';
-              console.log(`Appel SDK: collection.getFloorPrice('${collectionId}', '${token}')`);
-              result = await collection.getFloorPrice(collectionId, token);
-            } else {
-              throw new Error(`Endpoint de collection non pris en charge: ${path}`);
-            }
-          } else if (path.includes('/nfts/')) {
-            // Vérifier si on peut accéder au module NFT du SDK réel
-            let NFTModule;
-            let nftModule;
-            
-            if (isMock) {
-              // Utiliser directement le NFTModule simulé
-              NFTModule = (window as any).NFTModule;
-              nftModule = new NFTModule();
-              console.log("[MOCK] Utilisation du NFTModule simulé");
-            } else {
-              // Utiliser le SDK réel
-              try {
-                const sdk = await import('@xoxno/sdk-js');
-                NFTModule = sdk.NFTModule;
-                nftModule = new NFTModule();
-                console.log("Utilisation du NFTModule du SDK réel");
-              } catch (err) {
-                console.warn("Erreur lors de l'import du NFTModule:", err);
-                throw new Error("Module NFT non disponible");
-              }
-            }
-            
-            if (path.includes('/getDailyTrending')) {
+          // Déterminer quel module et quelle méthode utiliser
+          if (path.includes('/nfts/getDailyTrending')) {
+            // Utiliser le module NFT pour getDailyTrending
+            try {
+              console.log("Utilisation du module NFT pour getDailyTrending");
+              
               // Extraire les paramètres
               const params = Object.fromEntries(new URLSearchParams(urlObj.search).entries());
+              
+              // Utiliser le SDK réel
+              const { NFTModule } = await import('@xoxno/sdk-js');
+              const nftModule = new NFTModule();
+              console.log("Module NFT importé depuis SDK réel");
+              
+              // Appeler directement la méthode du SDK au lieu de construire une URL
               console.log(`Appel SDK: nftModule.getDailyTrending(${JSON.stringify(params)})`);
-              result = await nftModule.getDailyTrending(params);
-            } else {
-              throw new Error(`Endpoint NFT non pris en charge: ${path}`);
+              result = await nftModule.getDailyTrending();
+            } catch (e) {
+              throw new Error(`Erreur lors de l'appel à getDailyTrending: ${e instanceof Error ? e.message : String(e)}`);
+            }
+          } else if (path.includes('/nft/search/query')) {
+            try {
+              console.log("Utilisation du module NFT pour search");
+              
+              // Extraire les paramètres
+              const params = Object.fromEntries(new URLSearchParams(urlObj.search).entries());
+              
+              // Utiliser le SDK réel
+              const { NFTModule } = await import('@xoxno/sdk-js');
+              const nftModule = new NFTModule();
+              console.log("Module NFT importé depuis SDK réel");
+              
+              // Appeler directement la méthode du SDK
+              console.log(`Appel SDK: nftModule.search(${JSON.stringify(params)})`);
+              result = await nftModule.search(params);
+            } catch (e) {
+              throw new Error(`Erreur lors de l'appel à search: ${e instanceof Error ? e.message : String(e)}`);
+            }
+          } else if (path.includes('/collection/')) {
+            // Utiliser le module Collection
+            try {
+              console.log("Utilisation du module Collection");
+              
+              // Utiliser le SDK réel
+              const { CollectionModule } = await import('@xoxno/sdk-js');
+              const collection = new CollectionModule();
+              console.log("Module Collection importé depuis SDK réel");
+              
+              if (path.includes('/profile')) {
+                // Extraire l'identifiant de collection
+                const collectionId = path.split('/collection/')[1].split('/profile')[0];
+                console.log(`Appel SDK: collection.getCollectionProfile('${collectionId}')`);
+                result = await collection.getCollectionProfile(collectionId);
+              } else if (path.includes('/floor-price')) {
+                // Extraire l'identifiant de collection
+                const collectionId = path.split('/collection/')[1].split('/floor-price')[0];
+                // Extraire les paramètres de requête
+                const params = new URLSearchParams(urlObj.search);
+                const token = params.get('token') || 'EGLD';
+                console.log(`Appel SDK: collection.getFloorPrice('${collectionId}', '${token}')`);
+                result = await (collection as any).getFloorPrice(collectionId, token);
+              } else {
+                throw new Error(`Endpoint de collection non pris en charge: ${path}`);
+              }
+            } catch (e) {
+              throw new Error(`Erreur lors de l'appel au module Collection: ${e instanceof Error ? e.message : String(e)}`);
             }
           } else {
             throw new Error(`Type d'endpoint non pris en charge: ${path}`);
@@ -463,23 +368,19 @@ function useApiRequest() {
           const endTime = performance.now();
           const duration = (endTime - startTime).toFixed(2);
           
-          // Ajouter une indication visuelle indiquant si c'est une réponse simulée
-          const isMockResponse = result && result.mockData === true;
-          
           setResponseData(JSON.stringify(result, null, 2));
-          setResponseStatus(`200 OK${isMockResponse ? ' (Simulé)' : ''}`);
+          setResponseStatus(`200 OK`);
           setResponseDetails({
             url: url,
             status: 200,
-            statusText: isMockResponse ? "OK (Données simulées)" : "OK",
+            statusText: "OK",
             headers: { "content-type": "application/json" },
             duration: `${duration}ms`,
-            simulated: isMockResponse
           });
           
           console.log(`Réponse SDK reçue en ${duration}ms`);
           console.log(`Contenu:`, result);
-          console.log(`Requête réussie ✅ ${isMockResponse ? '(Simulée)' : ''}`);
+          console.log(`Requête réussie ✅`);
           console.groupEnd();
           setIsLoading(false);
           return;
@@ -585,6 +486,11 @@ function useApiRequest() {
   }
 }
 
+// Fonction utilitaire pour obtenir le numéro de ligne à partir d'un index dans le texte
+const getLineNumber = (text: string, index: number): number => {
+  return text.substring(0, index).split('\n').length;
+};
+
 // Fonctions utilitaires
 const findEndpointsInFile = (content: string, path: string): Endpoint[] => {
   const detectedEndpoints: Endpoint[] = []
@@ -647,84 +553,63 @@ const findEndpointsInFile = (content: string, path: string): Endpoint[] => {
       else if (methodName.toLowerCase().includes('delete')) httpMethod = "DELETE";
       else if (methodName.toLowerCase().includes('patch')) httpMethod = "PATCH";
       
-      // Extraire les paramètres requis
-      const paramList = parameters.split(',').map(p => p.trim().split(':')[0].trim()).filter(p => p);
-      
-      // Détecter les variables de chemin (comme ${collection})
-      const pathVarRegex = /\$\{([^}]+)\}/g;
-      const pathVariables: string[] = [];
-      let pathVarMatch;
-      while ((pathVarMatch = pathVarRegex.exec(endpoint)) !== null) {
-        pathVariables.push(pathVarMatch[1]);
-      }
-      
-      // Calculer le numéro de ligne approximatif
-      const lines = content.slice(0, match.index).split('\n');
-      const lineNumber = lines.length;
-      
-      // Extraire une description à partir des commentaires JSDoc si disponible
-      let description = "";
-      const jsdocRegex = /\/\*\*[\s\S]*?\*\/\s*(?:public|private)?\s+(\w+)\s*=/g;
-      jsdocRegex.lastIndex = 0;
-      let jsdocMatch;
-      while ((jsdocMatch = jsdocRegex.exec(content)) !== null) {
-        if (jsdocMatch[1] === methodName) {
-          const jsdoc = jsdocMatch[0];
-          const descriptionMatch = jsdoc.match(/@description\s+([^\n]+)/);
-          if (descriptionMatch) {
-            description = descriptionMatch[1];
-          } else {
-            // Extraire la première ligne de texte du JSDoc qui n'est pas une annotation
-            const lines = jsdoc.split('\n');
-            for (const line of lines) {
-              const trimmed = line.trim().replace(/^\*\s*/, '');
-              if (trimmed && !trimmed.startsWith('@') && !trimmed.startsWith('/*') && !trimmed.startsWith('*/')) {
-                description = trimmed;
-                break;
-              }
-            }
-          }
-          break;
-        }
-      }
-      
-      // Déterminer si l'endpoint nécessite un corps de requête
-      const hasRequestBody = ['POST', 'PUT', 'PATCH'].includes(httpMethod) || 
-                            content.slice(match.index, match.index + 1000).includes('body:') ||
-                            content.slice(match.index, match.index + 1000).includes('requestBody');
-      
+      // Ajouter l'endpoint détecté
       detectedEndpoints.push({
         path: endpoint,
         method: httpMethod,
-        description: description || `${methodName}`,
-        params: paramList,
-        body: hasRequestBody,
-        source: methodName,
-        lineNumber: lineNumber,
-        pathVariables: pathVariables.length > 0 ? pathVariables : undefined
+        description: `SDK Method: ${methodName}(${parameters})`,
+        source: path,
+        lineNumber: getLineNumber(content, match.index)
       });
     }
     
-    // Chercher également les URL d'API littérales
-    const templateApiRegex = /['"`](\/[^'"`\s{}]+(?:\$\{[^}]+\}[^'"`\s{}]*)*)['"`]/g;
-    while ((match = templateApiRegex.exec(content)) !== null) {
-      const endpoint = match[1];
-      if (!detectedEndpoints.some(e => e.path === endpoint)) {
-        // Éviter les doublons
-        // Détecter les variables de chemin
-        const pathVarRegex = /\$\{([^}]+)\}/g;
-        const pathVariables: string[] = [];
-        let pathVarMatch;
-        while ((pathVarMatch = pathVarRegex.exec(endpoint)) !== null) {
-          pathVariables.push(pathVarMatch[1]);
+    // Détection spécifique du SDK XOXNO
+    if (content.includes('XOXNOClient') || path.includes('xoxno') || path.includes('XOXNO')) {
+      // Recherche des méthodes d'API XOXNO spécifiques
+      const xoxnoMethodRegex = /(?:public|private)?\s+(\w+)\s*=?\s*(?:async)?\s*\(([^)]*)\)/g;
+      
+      while ((match = xoxnoMethodRegex.exec(content)) !== null) {
+        const methodName = match[1];
+        const parameters = match[2];
+        
+        // Ignorer les constructeurs et méthodes privées/internes
+        if (methodName === 'constructor' || methodName.startsWith('_')) continue;
+        
+        // Déterminer le chemin d'endpoint en fonction du module et de la méthode
+        let endpoint = '';
+        if (path.includes('NFTModule') || path.toLowerCase().includes('nft')) {
+          if (methodName === 'getDailyTrending') {
+            endpoint = '/nfts/getDailyTrending';
+          } else if (methodName === 'search') {
+            endpoint = '/nft/search/query';
+          }
+        } else if (path.includes('CollectionModule') || path.toLowerCase().includes('collection')) {
+          if (methodName === 'getCollectionProfile') {
+            endpoint = '/collection/${collectionId}/profile';
+          } else if (methodName === 'getFloorPrice') {
+            endpoint = '/collection/${collectionId}/floor-price';
+          }
         }
         
-        detectedEndpoints.push({
-          path: endpoint,
-          method: "GET",
-          description: "API URL detected in code",
-          pathVariables: pathVariables.length > 0 ? pathVariables : undefined
-        });
+        // Si un endpoint a été déterminé, l'ajouter à la liste
+        if (endpoint) {
+          // Extraire les variables de chemin de l'endpoint
+          const pathVariables = [];
+          const pathVarRegex = /\$\{([^}]+)\}/g;
+          let pathVarMatch;
+          while ((pathVarMatch = pathVarRegex.exec(endpoint)) !== null) {
+            pathVariables.push(pathVarMatch[1]);
+          }
+          
+          detectedEndpoints.push({
+            path: endpoint,
+            method: 'GET',
+            description: `XOXNO SDK: ${methodName}(${parameters})`,
+            source: path,
+            lineNumber: getLineNumber(content, match.index),
+            pathVariables: pathVariables.length > 0 ? pathVariables : undefined
+          });
+        }
       }
     }
   }
@@ -847,7 +732,7 @@ function EndpointSelector({ endpoints, selectedValue, onValueChange }: {
     <div className="mb-4">
       <div className="flex justify-between items-center mb-1">
         <label className="text-sm font-medium block">
-          Select an endpoint:
+          Select an endpoint
         </label>
         <TooltipProvider>
           <Tooltip>
@@ -869,41 +754,56 @@ function EndpointSelector({ endpoints, selectedValue, onValueChange }: {
           </Tooltip>
         </TooltipProvider>
       </div>
-      <Select
-        value={selectedValue}
-        onValueChange={onValueChange}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Choose an endpoint" />
-        </SelectTrigger>
-        <SelectContent>
-          {endpoints.map((endpoint, index) => (
-            <SelectItem 
-              key={index} 
-              value={`${endpoint.method}-${endpoint.path}`}
-            >
-              <div className="flex items-center gap-2">
-                <span className={`
-                  inline-block px-2 py-0.5 text-xs font-medium rounded
-                  ${endpoint.method === 'GET' ? 'bg-green-100 text-green-800' : ''}
-                  ${endpoint.method === 'POST' ? 'bg-blue-100 text-blue-800' : ''}
-                  ${endpoint.method === 'PUT' ? 'bg-yellow-100 text-yellow-800' : ''}
-                  ${endpoint.method === 'DELETE' ? 'bg-red-100 text-red-800' : ''}
-                  ${endpoint.method === 'PATCH' ? 'bg-purple-100 text-purple-800' : ''}
-                `}>
-                  {endpoint.method}
-                </span>
-                <span className="truncate max-w-[300px]">{endpoint.path}</span>
-              </div>
-              {endpoint.description && (
-                <div className="text-xs text-muted-foreground mt-0.5 ml-8">
-                  {endpoint.source ? `${endpoint.source}: ` : ""}{endpoint.description}
+      
+      {/* Interface de sélection en deux colonnes avec scrollbar */}
+      <div className="border rounded-md overflow-hidden">
+        <div className="max-h-96 overflow-y-auto p-1">
+          <div className="grid grid-cols-2 gap-3">
+            {endpoints.map((endpoint, index) => (
+              <div 
+                key={index}
+                onClick={() => onValueChange(`${endpoint.method}-${endpoint.path}`)}
+                className={`
+                  p-3 rounded-md cursor-pointer hover:bg-muted/50 transition-colors
+                  ${selectedValue === `${endpoint.method}-${endpoint.path}` ? 'bg-muted border-2 border-primary/50' : 'border border-muted/50'}
+                `}
+              >
+                <div className="flex items-start gap-2">
+                  <span className={`
+                    inline-block px-2 py-0.5 text-xs font-medium rounded shrink-0
+                    ${endpoint.method === 'GET' ? 'bg-green-100 text-green-800' : ''}
+                    ${endpoint.method === 'POST' ? 'bg-blue-100 text-blue-800' : ''}
+                    ${endpoint.method === 'PUT' ? 'bg-yellow-100 text-yellow-800' : ''}
+                    ${endpoint.method === 'DELETE' ? 'bg-red-100 text-red-800' : ''}
+                    ${endpoint.method === 'PATCH' ? 'bg-purple-100 text-purple-800' : ''}
+                  `}>
+                    {endpoint.method}
+                  </span>
+                  <span className="break-all text-sm leading-tight">{endpoint.path}</span>
                 </div>
-              )}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+                {endpoint.description && (
+                  <div className="text-xs text-muted-foreground mt-1.5 ml-0 leading-tight">
+                    {endpoint.source ? (
+                      <span className="font-medium">{endpoint.source}: </span>
+                    ) : ""}
+                    {endpoint.description}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      
+      {/* Affichage de l'endpoint sélectionné */}
+      {selectedValue && (
+        <div className="mt-2 text-sm">
+          <span className="text-muted-foreground">Selected: </span>
+          <span className="font-medium">
+            {endpoints.find(e => `${e.method}-${e.path}` === selectedValue)?.path || selectedValue}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -1050,7 +950,7 @@ export function EndpointsTester() {
       <div className="p-4 border-b">
         <h2 className="text-lg font-semibold">Endpoints Tester</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Test API endpoints found in the selected file
+          Test {endpoints.length} endpoints found in the {selectedFile?.path || "selected"} file
         </p>
       </div>
       

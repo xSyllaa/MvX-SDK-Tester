@@ -40,6 +40,12 @@ function getLanguageModeForFile(filename: string): string {
   return modeMap[extension || ''] || 'text/plain';
 }
 
+// Function to escape special regex characters for search
+function escapeRegExp(string: string): string {
+  // Escape special characters that have meaning in regular expressions
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // Global variable to store search controls
 // Cette déclaration est maintenant dans types/code-mirror.d.ts
 
@@ -107,14 +113,24 @@ export function FileContent({ content = "", path = "", size = 0, lines = 0 }: Fi
     // Définir un nouveau debounce
     debounceTimeoutRef.current = setTimeout(() => {
       if (typeof window !== 'undefined' && window.cmSearchControls) {
-        // Appliquer la recherche
-        window.cmSearchControls.search(newQuery);
-        
-        // Récupérer les résultats immédiatement après la recherche
-        const results = window.cmSearchControls.getSearchInfo();
-        if (results) {
-          setSearchResults(results.total > 0 ? results : null);
-          console.log("Résultats de recherche:", results);
+        try {
+          // Échapper les caractères spéciaux de RegExp pour éviter les erreurs
+          const escapedQuery = escapeRegExp(newQuery);
+          
+          // Appliquer la recherche avec la requête échappée
+          window.cmSearchControls.search(escapedQuery);
+          
+          // Récupérer les résultats immédiatement après la recherche
+          const results = window.cmSearchControls.getSearchInfo();
+          if (results) {
+            setSearchResults(results.total > 0 ? results : null);
+            console.log("Résultats de recherche:", results);
+          }
+        } catch (error) {
+          console.error("Erreur lors de la recherche:", error);
+          // En cas d'erreur, réinitialiser la recherche
+          window.cmSearchControls.search("");
+          setSearchResults(null);
         }
       }
     }, 300); // Délai de 300ms pour le debounce
@@ -174,34 +190,43 @@ export function FileContent({ content = "", path = "", size = 0, lines = 0 }: Fi
       }
       
       if (typeof window !== 'undefined' && window.cmSearchControls) {
-        // Effectue d'abord la recherche si nécessaire
-        if (searchQuery && !searchResults) {
-          window.cmSearchControls.search(searchQuery);
-          const results = window.cmSearchControls.getSearchInfo();
-          setSearchResults(results);
-        } else {
-          // Sinon, navigue entre les résultats
-          if (e.shiftKey) {
-            // Naviguer vers le résultat précédent
-            window.cmSearchControls.findPrevious();
-            // Récupérer les informations de recherche après navigation
-            setTimeout(() => {
-              if (window.cmSearchControls) {
-                const results = window.cmSearchControls.getSearchInfo();
-                setSearchResults(results);
-              }
-            }, 50);
+        try {
+          // Effectue d'abord la recherche si nécessaire
+          if (searchQuery && !searchResults) {
+            // Échapper les caractères spéciaux de RegExp
+            const escapedQuery = escapeRegExp(searchQuery);
+            window.cmSearchControls.search(escapedQuery);
+            const results = window.cmSearchControls.getSearchInfo();
+            setSearchResults(results);
           } else {
-            // Naviguer vers le résultat suivant
-            window.cmSearchControls.findNext();
-            // Récupérer les informations de recherche après navigation
-            setTimeout(() => {
-              if (window.cmSearchControls) {
-                const results = window.cmSearchControls.getSearchInfo();
-                setSearchResults(results);
-              }
-            }, 50);
+            // Sinon, navigue entre les résultats
+            if (e.shiftKey) {
+              // Naviguer vers le résultat précédent
+              window.cmSearchControls.findPrevious();
+              // Récupérer les informations de recherche après navigation
+              setTimeout(() => {
+                if (window.cmSearchControls) {
+                  const results = window.cmSearchControls.getSearchInfo();
+                  setSearchResults(results);
+                }
+              }, 50);
+            } else {
+              // Naviguer vers le résultat suivant
+              window.cmSearchControls.findNext();
+              // Récupérer les informations de recherche après navigation
+              setTimeout(() => {
+                if (window.cmSearchControls) {
+                  const results = window.cmSearchControls.getSearchInfo();
+                  setSearchResults(results);
+                }
+              }, 50);
+            }
           }
+        } catch (error) {
+          console.error("Erreur lors de la recherche ou navigation:", error);
+          // En cas d'erreur, réinitialiser la recherche
+          window.cmSearchControls.search("");
+          setSearchResults(null);
         }
       }
     } else if (e.key === 'Escape') {
@@ -240,7 +265,7 @@ export function FileContent({ content = "", path = "", size = 0, lines = 0 }: Fi
     <div className="border rounded-md overflow-hidden bg-background h-full flex flex-col">
       <div className="flex items-center justify-between border-b p-2 bg-muted/30">
         <div className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{path ? path.split("/").pop() : "Unnamed File"}</span>
+          <span className="font-medium text-foreground">{path || "Unnamed File"}</span>
           <span className="mx-2">·</span>
           <span>{lines} {lines === 1 ? "line" : "lines"}</span>
           <span className="mx-2">·</span>
