@@ -6,6 +6,7 @@ import { RepoStats } from "@/components/repo/RepoStats"
 import { FileTree } from "@/components/repo/FileTree"
 import { FileContent } from "@/components/repo/FileContent"
 import { useRepoData } from "@/components/repo/RepoDataProvider"
+import { EndpointsTester } from "@/components/repo/EndpointsTester"
 
 // Composant qui utilise le contexte pour rendre le contenu du fichier
 function FileContentWrapper() {
@@ -13,7 +14,7 @@ function FileContentWrapper() {
   
   if (!selectedFile || selectedFile.type !== 'file') {
     return (
-      <div className="border rounded-md overflow-hidden bg-background p-4 flex items-center justify-center h-[calc(100vh-15rem)]">
+      <div className="border rounded-md overflow-hidden bg-background p-4 flex items-center justify-center h-[500px]">
         <p className="text-muted-foreground">Sélectionnez un fichier pour afficher son contenu</p>
       </div>
     );
@@ -51,12 +52,17 @@ export default function AnalyzerPage() {
           <RepoStats />
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 h-[500px] flex flex-col">
               <FileTree />
             </div>
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-2 h-[500px] flex flex-col">
               <FileContentWrapper />
             </div>
+          </div>
+          
+          {/* Nouveau composant pour tester les endpoints */}
+          <div className="mt-6">
+            <EndpointsTester />
           </div>
         </RepoDataProvider>
       </div>

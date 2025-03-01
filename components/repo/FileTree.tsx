@@ -102,7 +102,7 @@ export function FileTree() {
   };
 
   return (
-    <div className="rounded-lg border bg-background shadow-sm">
+    <div className="rounded-lg border bg-background shadow-sm h-full flex flex-col">
       <div className="p-4 border-b flex justify-between items-center">
         <h2 className="text-lg font-semibold">Repository Structure</h2>
         
@@ -134,7 +134,7 @@ export function FileTree() {
           </Tooltip>
         </TooltipProvider>
       </div>
-      <div className="p-2 h-[calc(100vh-10rem)] overflow-y-auto">
+      <div className="p-2 flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>

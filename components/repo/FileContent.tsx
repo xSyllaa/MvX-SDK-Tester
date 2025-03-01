@@ -237,7 +237,7 @@ export function FileContent({ content = "", path = "", size = 0, lines = 0 }: Fi
   }, [content, path])
 
   return (
-    <div className="border rounded-md overflow-hidden bg-background">
+    <div className="border rounded-md overflow-hidden bg-background h-full flex flex-col">
       <div className="flex items-center justify-between border-b p-2 bg-muted/30">
         <div className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground">{path ? path.split("/").pop() : "Unnamed File"}</span>
@@ -284,64 +284,66 @@ export function FileContent({ content = "", path = "", size = 0, lines = 0 }: Fi
         </TooltipProvider>
       </div>
       
+      {/* Zone de recherche */}
       {isSearchOpen && (
-        <div className="flex items-center p-2 bg-[#f3f3f3] border-b">
-          <div className="flex-1 flex items-center">
-            <span className="text-muted-foreground mr-2">&gt;</span>
+        <div className="flex items-center justify-between space-x-2 p-2 border-b bg-muted/20">
+          <div className="relative flex-1 flex items-center">
+            <Search className="h-4 w-4 absolute left-2.5 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
             <input
               ref={searchInputRef}
               type="text"
               value={searchQuery}
               onChange={handleSearchChange}
               onKeyDown={handleSearchKeyDown}
-              placeholder="Search..."
-              className="flex-1 bg-white border border-input rounded-sm px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Rechercher dans le fichier..."
+              className="pl-9 pr-4 py-1 h-9 w-full rounded-md bg-background border text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
-          <div className="flex items-center ml-2">
-            {searchResults && (
-              <span className="text-xs text-muted-foreground mr-2">
-                {searchResults.current} of {searchResults.total}
+          {searchResults && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {searchResults.current}/{searchResults.total}
               </span>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handlePrevResult}
-              disabled={!searchResults || searchResults.total === 0}
-              className="h-7 w-7"
-            >
-              <ArrowUpLine className="h-4 w-4" />
-              <span className="sr-only">Previous</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleNextResult}
-              disabled={!searchResults || searchResults.total === 0}
-              className="h-7 w-7"
-            >
-              <ArrowDownLine className="h-4 w-4" />
-              <span className="sr-only">Next</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleCloseSearch}
-              className="h-7 w-7 ml-1"
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
-            </Button>
-          </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handlePrevResult}
+                className="h-8 w-8"
+                disabled={!searchResults || searchResults.total === 0}
+              >
+                <ArrowUpLine className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleNextResult}
+                className="h-8 w-8"
+                disabled={!searchResults || searchResults.total === 0}
+              >
+                <ArrowDownLine className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleCloseSearch}
+            className="h-8 w-8"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
       )}
-      
-      <CodeMirror
-        value={content}
-        height="calc(100vh - 15rem)"
-        filename={path}
-      />
+
+      {/* Contenu du fichier */}
+      <div className="flex-1 overflow-hidden">
+        <CodeMirror
+          value={content}
+          height="100%"
+          filename={path}
+          onSearchToggle={setIsSearchOpen}
+        />
+      </div>
     </div>
   )
 } 

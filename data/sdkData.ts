@@ -107,5 +107,28 @@ export const sdkList: SDK[] = [
       { name: "Community Champions", category: TagCategory.OTHER },
     ],
   },
+  {
+    name: "XOXNO SDK",
+    description: "A JavaScript library that simplifies the interaction with the XOXNO Protocol for developers. It includes helper functions and modules to fetch, filter, and interact with data from the XOXNO Protocol and its NFT marketplace.",
+    github_link: "https://github.com/XOXNO/sdk-js",
+    tags: [
+      { name: "JavaScript", category: TagCategory.LANGUAGE },
+      { name: "NFT Marketplace", category: TagCategory.PURPOSE },
+      { name: "API", category: TagCategory.TECHNOLOGY },
+      { name: "XOXNO Protocol", category: TagCategory.OTHER },
+    ],
+  },
+  {
+    name: "Liquid Staking Smart Contract",
+    description: "A smart contract that allows users to stake EGLD in return for lsEGLD, a fungible ESDT that can be used in multiple ways in the MultiversX ecosystem, all while retaining the standard staking rewards.",
+    github_link: "https://github.com/multiversx/mx-sc-snippets",
+    tags: [
+      { name: "Rust", category: TagCategory.LANGUAGE },
+      { name: "Smart Contract", category: TagCategory.TECHNOLOGY },
+      { name: "Liquid Staking", category: TagCategory.PURPOSE },
+      { name: "DeFi", category: TagCategory.PURPOSE },
+      { name: "ESDT", category: TagCategory.TECHNOLOGY },
+    ],
+  },
 ];
 
