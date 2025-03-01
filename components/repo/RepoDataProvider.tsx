@@ -52,6 +52,7 @@ interface RepoDataContextType {
   selectedFile: FileNode | null;
   repoMetadata: RepoMetadata | null;
   parsedRepo: ParsedRepo | null;
+  repoName: string | null;
   setSelectedFile: (file: FileNode | null) => void;
   toggleFolder: (node: FileNode) => void;
   formatFileSize: (bytes: number) => string;
@@ -454,6 +455,7 @@ export function RepoDataProvider({ repoPath, children }: RepoDataProviderProps) 
     selectedFile,
     repoMetadata,
     parsedRepo,
+    repoName: parsedRepo?.name || null,
     setSelectedFile,
     toggleFolder,
     formatFileSize,
