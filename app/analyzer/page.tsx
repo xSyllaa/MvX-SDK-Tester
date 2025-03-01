@@ -1,26 +1,124 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import Link from "next/link"
-import { ArrowLeft, Search, AlertCircle } from "lucide-react"
+import { ArrowLeft, Search, X, Filter, Tag as TagIcon, Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { SDKCard } from "@/components/sdk-card"
-import { sdkList, type SDK, tagCategoryColors } from "@/data/sdkData"
+import { sdkList, type SDK, TagCategory, tagCategoryColors, type Tag } from "@/data/sdkData"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useGithubClone } from "@/hooks/useGithubClone"
 import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
+import { Card } from "@/components/ui/card"
+import { Switch } from "@/components/ui/switch"
+
+// Icônes pour chaque catégorie
+const CategoryIcons: Record<TagCategory, React.ReactNode> = {
+  [TagCategory.LANGUAGE]: <TagIcon className="h-3.5 w-3.5" />,
+  [TagCategory.PURPOSE]: <TagIcon className="h-3.5 w-3.5" />,
+  [TagCategory.FRAMEWORK]: <TagIcon className="h-3.5 w-3.5" />,
+  [TagCategory.PLATFORM]: <TagIcon className="h-3.5 w-3.5" />,
+  [TagCategory.TECHNOLOGY]: <TagIcon className="h-3.5 w-3.5" />,
+  [TagCategory.OTHER]: <TagIcon className="h-3.5 w-3.5" />,
+  [TagCategory.OWNER]: <TagIcon className="h-3.5 w-3.5" />,
+}
 
 export default function AnalyzerPage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [activeFilters, setActiveFilters] = useState<{category: TagCategory, value: string}[]>([])
+  const [activeCategory, setActiveCategory] = useState<TagCategory>(TagCategory.LANGUAGE)
+  const [isOrMode, setIsOrMode] = useState(false) // false = AND mode, true = OR mode
   const { cloneRepository, isLoading, error } = useGithubClone()
   const router = useRouter()
 
-  const filteredSDKs = sdkList.filter(
-    (sdk) =>
-      sdk.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sdk.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sdk.tags.some((tag) => tag.name.toLowerCase().includes(searchQuery.toLowerCase())),
-  )
+  // Calcul des occurrences pour chaque catégorie et valeur
+  const { tagCategoriesAndValues, categoryCounts, valueCounts } = useMemo(() => {
+    const categoryMap: Record<TagCategory, Set<string>> = Object.values(TagCategory).reduce((acc, category) => {
+      acc[category] = new Set<string>()
+      return acc
+    }, {} as Record<TagCategory, Set<string>>)
+    
+    // Compteurs pour les catégories et les valeurs
+    const categoryCountMap: Record<TagCategory, number> = Object.values(TagCategory).reduce((acc, category) => {
+      acc[category] = 0
+      return acc
+    }, {} as Record<TagCategory, number>)
+    
+    const valueCountMap: Record<string, number> = {}
+    
+    // Parcourir tous les SDK pour compter les occurrences
+    sdkList.forEach(sdk => {
+      sdk.tags.forEach(tag => {
+        categoryMap[tag.category].add(tag.name)
+        
+        // Incrémenter le compteur de la catégorie
+        categoryCountMap[tag.category]++
+        
+        // Incrémenter le compteur de la valeur
+        const valueKey = `${tag.category}:${tag.name}`
+        valueCountMap[valueKey] = (valueCountMap[valueKey] || 0) + 1
+      })
+    })
+
+    return {
+      tagCategoriesAndValues: Object.entries(categoryMap).map(([category, valuesSet]) => ({
+        category: category as TagCategory,
+        values: Array.from(valuesSet).sort()
+      })),
+      categoryCounts: categoryCountMap,
+      valueCounts: valueCountMap
+    }
+  }, [])
+
+  // Obtenir les valeurs pour la catégorie active
+  const activeValues = useMemo(() => {
+    const categoryData = tagCategoriesAndValues.find(item => item.category === activeCategory)
+    return categoryData ? categoryData.values : []
+  }, [tagCategoriesAndValues, activeCategory])
+
+  const filteredSDKs = useMemo(() => {
+    return sdkList.filter(sdk => {
+      // Filtre par recherche textuelle
+      const matchesSearch = searchQuery === "" || 
+        sdk.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        sdk.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        sdk.tags.some((tag) => tag.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      
+      // Filtre par filtres actifs selon le mode (AND/OR)
+      let matchesFilters = true;
+      
+      if (activeFilters.length > 0) {
+        if (isOrMode) {
+          // Mode OR: au moins un filtre doit correspondre
+          matchesFilters = activeFilters.some(filter => 
+            sdk.tags.some(tag => tag.category === filter.category && tag.name === filter.value)
+          );
+        } else {
+          // Mode AND: tous les filtres doivent correspondre (comportement d'origine)
+          matchesFilters = activeFilters.every(filter => 
+            sdk.tags.some(tag => tag.category === filter.category && tag.name === filter.value)
+          );
+        }
+      }
+
+      return matchesSearch && matchesFilters
+    })
+  }, [searchQuery, activeFilters, isOrMode])
+
+  const handleAddFilter = (category: TagCategory, value: string) => {
+    if (!activeFilters.some(f => f.category === category && f.value === value)) {
+      setActiveFilters([...activeFilters, { category, value }])
+    }
+  }
+
+  const handleRemoveFilter = (category: TagCategory, value: string) => {
+    setActiveFilters(activeFilters.filter(f => !(f.category === category && f.value === value)))
+  }
 
   const handleAnalyze = (sdk: SDK) => {
     const repoPath = extractRepoPath(sdk.github_link)
@@ -36,8 +134,6 @@ export default function AnalyzerPage() {
         console.log('Dépôt cloné avec succès:', result.data)
       } else {
         console.error('Erreur de clonage:', result.error)
-        // Vous pouvez ajouter ici une notification d'erreur pour l'utilisateur
-        // par exemple avec un toast ou une alerte
       }
     }
   }
@@ -83,8 +179,9 @@ export default function AnalyzerPage() {
             </p>
           </div>
 
-          <div className="w-full max-w-2xl space-y-4">
-            <div className="relative">
+          {/* Zone de recherche */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
@@ -94,23 +191,175 @@ export default function AnalyzerPage() {
                 onChange={handleSearch}
               />
             </div>
+            
+            {activeFilters.length > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-xs whitespace-nowrap"
+                onClick={() => setActiveFilters([])}
+              >
+                Clear All Filters ({activeFilters.length})
+              </Button>
+            )}
           </div>
 
-          {filteredSDKs.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredSDKs.map((sdk) => (
-                <SDKCard 
-                  key={sdk.name} 
-                  sdk={sdk} 
-                  onAnalyze={() => handleAnalyze(sdk)}
-                />
-              ))}
+          {/* Section de filtrage */}
+          <Card className="border rounded-lg overflow-hidden bg-background">
+            <div className="p-4 border-b">
+              <h3 className="text-sm font-medium mb-2">Filter by Category</h3>
+              
+              {/* Ligne de catégories */}
+              <div className="flex flex-wrap gap-2">
+                {Object.values(TagCategory).map(category => (
+                  <Button
+                    key={category}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1.5 h-8"
+                    style={activeCategory === category ? 
+                      { backgroundColor: tagCategoryColors[category], color: "white" } : 
+                      { 
+                        backgroundColor: `${tagCategoryColors[category]}20`, 
+                        borderColor: tagCategoryColors[category], 
+                        color: "inherit" 
+                      }
+                    }
+                    onClick={() => setActiveCategory(category)}
+                  >
+                    <span 
+                      className="w-2 h-2 rounded-full" 
+                      style={{ backgroundColor: activeCategory === category ? "white" : tagCategoryColors[category] }}
+                    />
+                    <span>{category}</span>
+                    <span className="ml-1.5 text-xs opacity-70 font-normal">
+                      ({categoryCounts[category]})
+                    </span>
+                  </Button>
+                ))}
+              </div>
             </div>
-          ) : (
-            <div className="border rounded-lg p-8 text-center">
-              <p className="text-muted-foreground">No SDKs match your search criteria.</p>
+            
+            {/* Valeurs de la catégorie active */}
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-medium">{activeCategory}</h4>
+                <span className="text-xs text-muted-foreground">{activeValues.length} options</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {activeValues.map(value => {
+                  const isActive = activeFilters.some(f => f.category === activeCategory && f.value === value);
+                  const valueKey = `${activeCategory}:${value}`;
+                  const count = valueCounts[valueKey] || 0;
+                  
+                  return (
+                    <Badge
+                      key={`${activeCategory}-${value}`}
+                      variant={isActive ? "default" : "outline"}
+                      className={`cursor-pointer transition-all py-1.5 px-2.5 ${
+                        isActive 
+                          ? "hover:opacity-90" 
+                          : "hover:border-primary hover:text-primary"
+                      }`}
+                      style={{ 
+                        backgroundColor: isActive ? tagCategoryColors[activeCategory] : `${tagCategoryColors[activeCategory]}10`,
+                        borderColor: isActive ? tagCategoryColors[activeCategory] : undefined,
+                        color: isActive ? "white" : undefined
+                      }}
+                      onClick={() => isActive 
+                        ? handleRemoveFilter(activeCategory, value) 
+                        : handleAddFilter(activeCategory, value)
+                      }
+                    >
+                      {isActive && (
+                        <Check className="h-3 w-3 mr-1 stroke-[3]" />
+                      )}
+                      <span className="text-xs">{value}</span>
+                      <span className="ml-1.5 text-xs opacity-70">({count})</span>
+                    </Badge>
+                  );
+                })}
+              </div>
             </div>
-          )}
+
+            {/* Filtres actifs - déplacés sous la zone de choix */}
+            {activeFilters.length > 0 && (
+              <div className="p-4 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-4">
+                    <h4 className="text-sm font-medium">Active Filters</h4>
+                    
+                    {/* Toggle AND/OR */}
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className={!isOrMode ? "font-medium" : "text-muted-foreground"}>AND</span>
+                      <Switch 
+                        checked={isOrMode} 
+                        onCheckedChange={setIsOrMode} 
+                        className="data-[state=checked]:bg-primary" 
+                      />
+                      <span className={isOrMode ? "font-medium" : "text-muted-foreground"}>OR</span>
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-xs"
+                    onClick={() => setActiveFilters([])}
+                  >
+                    Clear All
+                  </Button>
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  {activeFilters.map(filter => (
+                    <Badge 
+                      key={`${filter.category}-${filter.value}`}
+                      variant="default"
+                      className="flex items-center gap-1 py-1.5 px-2 transition-all"
+                      style={{ 
+                        backgroundColor: tagCategoryColors[filter.category],
+                        color: "white"
+                      }}
+                    >
+                      <span className="text-xs">{filter.value}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-4 w-4 p-0 ml-1 hover:bg-transparent opacity-80 hover:opacity-100"
+                        onClick={() => handleRemoveFilter(filter.category, filter.value)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* Résultats */}
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-medium">Results <span className="text-muted-foreground">({filteredSDKs.length})</span></h2>
+            </div>
+
+            {filteredSDKs.length > 0 ? (
+              <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+                {filteredSDKs.map((sdk) => (
+                  <SDKCard 
+                    key={sdk.name} 
+                    sdk={sdk} 
+                    onAnalyze={() => handleAnalyze(sdk)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="border rounded-lg p-8 text-center">
+                <p className="text-muted-foreground">No SDKs match your search criteria.</p>
+              </div>
+            )}
+          </div>
         </div>
       </main>
     </div>
