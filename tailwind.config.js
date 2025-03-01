@@ -69,10 +69,15 @@ module.exports = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: 0 },
         },
+        "theme-toggle-rotate": {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" }
+        }
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "theme-toggle": "theme-toggle-rotate 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
       },
     },
   },
