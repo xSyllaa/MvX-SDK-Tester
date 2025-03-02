@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react"
 import { useGithubClone } from "@/hooks/useGithubClone"
-import { sdkList, TagCategory } from '@/data/sdkData'
+import { sdkList, TagCategory, SDK } from '@/data/sdkData'
 
 // Types
 export interface FileNode {
@@ -73,9 +73,10 @@ export const useRepoData = () => {
 interface RepoDataProviderProps {
   repoPath: string;
   children: ReactNode;
+  preloadedSDK?: SDK | null;
 }
 
-export function RepoDataProvider({ repoPath, children }: RepoDataProviderProps) {
+export function RepoDataProvider({ repoPath, children, preloadedSDK }: RepoDataProviderProps) {
   const [loading, setLoading] = useState(true);
   const [fileTree, setFileTree] = useState<FileNode[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
@@ -156,7 +157,28 @@ export function RepoDataProvider({ repoPath, children }: RepoDataProviderProps) 
       // Construire l'URL GitHub pour rechercher dans la liste des SDKs
       const repoUrl = `https://github.com/${parsedRepo.owner}/${parsedRepo.name}`;
       
-      // Chercher si ce repo existe dans notre liste de SDKs
+      // Si nous avons un SDK préchargé, utiliser ses informations
+      if (preloadedSDK && 
+          (preloadedSDK.github_link.toLowerCase() === repoUrl.toLowerCase() ||
+           preloadedSDK.github_link.toLowerCase().includes(`${parsedRepo.owner}/${parsedRepo.name}`.toLowerCase()))) {
+        return {
+          name: preloadedSDK.name,
+          fullName: `${parsedRepo.owner}/${preloadedSDK.name}`,
+          description: preloadedSDK.description,
+          stars: data.stargazers_count,
+          forks: data.forks_count,
+          language: data.language,
+          lastUpdated: data.updated_at,
+          owner: data.owner.login,
+          repoUrl: data.html_url,
+          defaultBranch: data.default_branch,
+          visibility: data.visibility,
+          hasSources: true,
+          tags: preloadedSDK.tags
+        }
+      }
+      
+      // Sinon, chercher si ce repo existe dans notre liste de SDKs
       const matchingSDK = sdkList.find(sdk => 
         sdk.github_link.toLowerCase() === repoUrl.toLowerCase() ||
         sdk.github_link.toLowerCase().includes(`${parsedRepo.owner}/${parsedRepo.name}`.toLowerCase())
@@ -182,7 +204,7 @@ export function RepoDataProvider({ repoPath, children }: RepoDataProviderProps) 
       console.error("Error fetching repo metadata:", err)
       throw err
     }
-  }, [])
+  }, [preloadedSDK])
   
   // 3. Calculate repository statistics from file tree
   const calculateRepoStats = useCallback((nodes: FileNode[]): { files: number, size: number } => {

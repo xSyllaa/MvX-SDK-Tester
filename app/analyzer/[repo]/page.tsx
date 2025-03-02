@@ -7,6 +7,8 @@ import { FileTree } from "@/components/repo/FileTree"
 import { FileContent } from "@/components/repo/FileContent"
 import { useRepoData } from "@/components/repo/RepoDataProvider"
 import { EndpointsTester } from "@/components/repo/EndpointsTester"
+import { useEffect, useState } from "react"
+import { SDK } from "@/data/sdkData"
 
 // Composant qui utilise le contexte pour rendre le contenu du fichier
 function FileContentWrapper() {
@@ -36,6 +38,22 @@ function FileContentWrapper() {
 export default function AnalyzerPage() {
   const params = useParams()
   const repoPath = decodeURIComponent((params.repo as string).replace(/%2F/g, "/"))
+  const [preloadedSDK, setPreloadedSDK] = useState<SDK | null>(null)
+  
+  // Récupérer les données du SDK depuis localStorage au chargement
+  useEffect(() => {
+    try {
+      const sdkData = localStorage.getItem('currentSDK')
+      if (sdkData) {
+        const sdk = JSON.parse(sdkData)
+        setPreloadedSDK(sdk)
+        // Effacer les données après utilisation pour éviter des problèmes lors de futurs chargements
+        localStorage.removeItem('currentSDK')
+      }
+    } catch (error) {
+      console.error("Error loading SDK data from localStorage:", error)
+    }
+  }, [])
   
   return (
     <main className="container mx-auto py-6 max-w-7xl">
@@ -48,7 +66,7 @@ export default function AnalyzerPage() {
           Explore and analyze SDKs to better understand their structure and functionalities.
         </p>
         
-        <RepoDataProvider repoPath={repoPath}>
+        <RepoDataProvider repoPath={repoPath} preloadedSDK={preloadedSDK}>
           <RepoStats />
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -132,6 +132,9 @@ export default function AnalyzerPage() {
   const handleAnalyze = (sdk: SDK) => {
     const repoPath = extractRepoPath(sdk.github_link)
     if (repoPath) {
+      // Utiliser les informations du SDK pour les stocker dans le localStorage
+      localStorage.setItem('currentSDK', JSON.stringify(sdk));
+      localStorage.setItem('dataSource', 'preloaded');
       router.push(`/analyzer/${encodeURIComponent(repoPath)}`)
     }
   }
