@@ -27,9 +27,10 @@ interface CodeMirrorProps {
   height?: string
   filename?: string
   onSearchToggle?: (isOpen: boolean) => void
+  editorRef?: React.MutableRefObject<EditorView | null>
 }
 
-export function CodeMirror({ value, height = "100%", filename, onSearchToggle }: CodeMirrorProps) {
+export function CodeMirror({ value, height = "100%", filename, onSearchToggle, editorRef }: CodeMirrorProps) {
   const [element, setElement] = useState<HTMLElement | null>(null)
   const editorViewRef = useRef<EditorView | null>(null)
   const [currentMatch, setCurrentMatch] = useState(0);
@@ -158,7 +159,12 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
     const match = matches[current - 1];
     view.dispatch({
       selection: EditorSelection.range(match.from, match.to),
-      scrollIntoView: true
+      effects: [
+        EditorView.scrollIntoView(match.from, {
+          y: 'start',
+          yMargin: 50
+        })
+      ]
     });
     
     // Mettre à jour l'état
@@ -216,7 +222,12 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
         const match = matches[currentPos - 1];
         view.dispatch({
           selection: EditorSelection.range(match.from, match.to),
-          scrollIntoView: true
+          effects: [
+            EditorView.scrollIntoView(match.from, {
+              y: 'start',
+              yMargin: 50
+            })
+          ]
         });
       }
       
@@ -255,13 +266,16 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
     const cursorTheme = EditorView.theme({
       "&": {
         fontSize: "13px",
-        backgroundColor: "transparent"
+        backgroundColor: "transparent",
+        outline: "none !important",
+        scrollbarGutter: "stable"
       },
       ".cm-content": {
         caretColor: "#5cadff",
         fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace",
         color: "#000000",                        
-        marginLeft: "8px"                       // Marge pour séparer du code de la gouttière
+        marginLeft: "8px",
+        outline: "none !important"
       },
       ".cm-gutters": {
         backgroundColor: "#f5f5f5",              // Gris clair pour les gouttières
@@ -295,7 +309,7 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
       ".cm-scroller": {
         overflow: "auto",      
         fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace",
-        backgroundColor: "#ffffff"               // Fond blanc pour le code
+        backgroundColor: "#ffffff",               // Fond blanc pour le code
       },
       // Amélioration des styles de numérotation de ligne
       ".cm-lineNumbers": {
@@ -339,12 +353,11 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
         height: "16px",
         cursor: "pointer"
       },
-      "&.cm-focused .cm-cursor": {
-        borderLeftWidth: "2px",
-        borderLeftColor: "#000000"
+      "&.cm-focused": {
+        outline: "none !important"
       },
-      "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
-        backgroundColor: "rgba(181, 213, 255, 0.5)"
+      "&.cm-focused .cm-line": {
+        outline: "none !important"
       },
       // Highlight search matches
       ".cm-searchMatch": {
@@ -365,7 +378,23 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
       EditorState.readOnly.of(true), // Double security for read-only
       search({
         caseSensitive: false
-      })
+      }),
+      // Configuration spécifique pour le scroll
+      EditorView.theme({
+        "&": {
+          height: "100%",
+          overflow: "hidden" // Empêcher le scroll global
+        },
+        ".cm-scroller": {
+          overflow: "auto",
+          height: "100%"
+        }
+      }),
+      // Configurer les marges de scroll pour centrer le contenu
+      EditorView.scrollMargins.of(() => ({
+        top: 50,
+        bottom: 50
+      }))
     ]
 
     // Language support based on file extension
@@ -415,7 +444,12 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
       parent: element,
     })
 
+    // Assign the editor view to both refs
     editorViewRef.current = view;
+    if (editorRef) {
+      editorRef.current = view;
+      window.cm = view; // Pour la compatibilité
+    }
 
     // API for controlling search
     window.cmSearchControls = {
@@ -511,11 +545,46 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
       }
     };
 
+    // Cleanup function
     return () => {
       window.cmSearchControls = undefined;
       view.destroy();
-    }
-  }, [element, value, filename, onSearchToggle])
+      editorViewRef.current = null;
+      if (editorRef) {
+        editorRef.current = null;
+      }
+    };
+  }, [element, value, filename, onSearchToggle, editorRef])
+
+  // Modifier la gestion des messages de scroll
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      
+      if (event.data.type === 'SCROLL_TO_LINE' && editorViewRef.current) {
+        const view = editorViewRef.current;
+        const line = event.data.lineNumber;
+        
+        // Créer une sélection pour la ligne spécifiée
+        const linePos = view.state.doc.line(line + 1);
+        const selection = EditorSelection.cursor(linePos.from);
+        
+        // Appliquer la sélection et le scroll
+        view.dispatch({
+          selection,
+          effects: [
+            EditorView.scrollIntoView(selection.from, {
+              y: "center",
+              yMargin: 50
+            })
+          ]
+        });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   return <div ref={setElement} style={{ height }} className="overflow-auto font-mono text-sm relative">
     <style jsx global>{`
@@ -523,6 +592,13 @@ export function CodeMirror({ value, height = "100%", filename, onSearchToggle }:
         height: 100%;
         width: 100%;
         overflow: auto;
+        outline: none !important;
+      }
+      .cm-editor * {
+        outline: none !important;
+      }
+      .cm-editor.cm-focused {
+        outline: none !important;
       }
       .cm-scroller {
         overflow: auto;

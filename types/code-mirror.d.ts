@@ -2,6 +2,8 @@
  * Types pour l'API de recherche CodeMirror
  */
 
+import { EditorView } from "codemirror"
+
 // Interface pour les contrôles de recherche
 export interface CodeMirrorSearchControls {
   /**
@@ -53,6 +55,7 @@ export interface SearchResult {
 // Étendre l'interface Window pour inclure nos contrôles
 declare global {
   interface Window {
+    cm?: EditorView;
     cmSearchControls?: CodeMirrorSearchControls;
     openCodeMirrorSearch?: () => void;
   }

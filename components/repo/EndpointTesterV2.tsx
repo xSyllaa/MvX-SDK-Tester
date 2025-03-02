@@ -416,11 +416,27 @@ const generateSuggestedParams = (endpoint: Endpoint): RequestParam[] => {
 }
 
 // Sous-composant pour afficher les endpoints
-function EndpointSelector({ endpoints, selectedValue, onValueChange }: {
+function EndpointSelector({ endpoints, selectedValue, onValueChange, onLineSelect }: {
   endpoints: Endpoint[];
   selectedValue: string;
   onValueChange: (value: string) => void;
+  onLineSelect?: (lineNumber: number, filePath: string) => void;
 }) {
+  // Fonction pour gérer la sélection d'un endpoint et son numéro de ligne
+  const handleEndpointSelect = useCallback((endpoint: Endpoint, e: React.MouseEvent) => {
+    // Empêcher la propagation et le comportement par défaut
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Appeler onValueChange avec l'endpoint sélectionné
+    onValueChange(`${endpoint.method}-${endpoint.path}`);
+    
+    // Si l'endpoint a un numéro de ligne et un chemin source, envoyer directement à CodeMirror
+    if (typeof endpoint.lineNumber === 'number' && endpoint.source && onLineSelect) {
+      onLineSelect(endpoint.lineNumber, endpoint.source);
+    }
+  }, [onValueChange, onLineSelect]);
+
   return (
     <div className="mb-4">
       <div className="flex justify-between items-center mb-1">
@@ -455,10 +471,10 @@ function EndpointSelector({ endpoints, selectedValue, onValueChange }: {
             {endpoints.map((endpoint, index) => (
               <div 
                 key={index}
-                onClick={() => onValueChange(`${endpoint.method}-${endpoint.path}`)}
+                onClick={(e) => handleEndpointSelect(endpoint, e)}
                 className={`
                   p-3 rounded-md cursor-pointer hover:bg-muted/50 transition-colors
-                  ${selectedValue === `${endpoint.method}-${endpoint.path}` ? 'bg-muted border-2 border-primary/50' : 'border border-muted/50'}
+                  ${selectedValue === `${endpoint.method}-${endpoint.path}` ? 'bg-muted' : 'border border-muted/50'}
                 `}
               >
                 <div className="flex items-start gap-2">
@@ -609,7 +625,7 @@ function LanguageInfo({ language, filePath }: { language: string; filePath: stri
 
 // Composant principal
 export function EndpointTesterV2() {
-  const { selectedFile } = useRepoData()
+  const { selectedFile, setScrollToLine } = useRepoData()
   
   // État pour stocker le contenu du fichier sélectionné et son chemin
   const [fileContent, setFileContent] = useState<string>("")
@@ -626,6 +642,22 @@ export function EndpointTesterV2() {
   // Utiliser les hooks personnalisés
   const { endpoints, fileLanguage } = useEndpointDetection(fileContent, filePath)
   const { selectedEndpoint, requestParams, updateRequestParam, handleEndpointSelection } = useEndpointSelection(endpoints)
+  
+  // Fonction pour naviguer vers la ligne de code de l'endpoint
+  const handleLineSelect = useCallback((lineNumber: number | undefined, filePath: string) => {
+    if (typeof lineNumber !== 'number' || !filePath) return;
+    
+    // Normaliser le chemin du fichier
+    const normalizedPath = filePath.replace(/^src\//, '');
+    
+    // Envoyer le message avec les informations de défilement et une option pour empêcher le scroll de la page
+    window.postMessage({
+      type: 'SCROLL_TO_LINE',
+      lineNumber: lineNumber - 1,
+      filePath: normalizedPath,
+      preventPageScroll: true
+    }, window.location.origin);
+  }, []);
   
   return (
     <div className="rounded-lg border bg-background shadow-sm">
@@ -658,6 +690,7 @@ export function EndpointTesterV2() {
             endpoints={endpoints}
             selectedValue={selectedEndpoint ? `${selectedEndpoint.method}-${selectedEndpoint.path}` : ""}
             onValueChange={handleEndpointSelection}
+            onLineSelect={handleLineSelect}
           />
           
           {/* Selected Endpoint UI */}

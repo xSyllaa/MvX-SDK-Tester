@@ -58,6 +58,8 @@ interface RepoDataContextType {
   formatFileSize: (bytes: number) => string;
   countItems: (node: FileNode) => number;
   calculateFolderSize: (node: FileNode) => number;
+  scrollToLine: number | null;
+  setScrollToLine: (line: number | null) => void;
 }
 
 const RepoDataContext = createContext<RepoDataContextType | null>(null);
@@ -85,6 +87,7 @@ export function RepoDataProvider({ repoPath, children, preloadedSDK }: RepoDataP
   const [parsedRepo, setParsedRepo] = useState<ParsedRepo | null>(null);
   const { cloneRepository, isLoading, error: cloneError } = useGithubClone();
   const isInitialMount = useRef(true);
+  const [scrollToLine, setScrollToLine] = useState<number | null>(null);
 
   // 1. Parse and validate repository URL
   const parseRepositoryUrl = useCallback((repoPath: string): ParsedRepo => {
@@ -482,7 +485,9 @@ export function RepoDataProvider({ repoPath, children, preloadedSDK }: RepoDataP
     toggleFolder,
     formatFileSize,
     countItems,
-    calculateFolderSize
+    calculateFolderSize,
+    scrollToLine,
+    setScrollToLine
   };
 
   return (
