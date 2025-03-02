@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import { ArrowLeft, Search, X, Filter, Tag as TagIcon, Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -8,7 +8,7 @@ import { SDKCard } from "@/components/sdk-card"
 import { sdkList, type SDK, TagCategory, tagCategoryColors, type Tag } from "@/data/sdkData"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useGithubClone } from "@/hooks/useGithubClone"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -35,6 +35,15 @@ export default function AnalyzerPage() {
   const [isOrMode, setIsOrMode] = useState(false) // false = AND mode, true = OR mode
   const { cloneRepository, isLoading, error } = useGithubClone()
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Récupérer le paramètre search de l'URL au chargement
+  useEffect(() => {
+    const searchFromUrl = searchParams.get("search")
+    if (searchFromUrl) {
+      setSearchQuery(searchFromUrl)
+    }
+  }, [searchParams])
 
   // Calcul des occurrences pour chaque catégorie et valeur
   const { tagCategoriesAndValues, categoryCounts, valueCounts } = useMemo(() => {

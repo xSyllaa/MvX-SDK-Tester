@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { motion } from "framer-motion"
 import { useInView } from "framer-motion"
-import { useRef } from "react"
+import { useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 
 // Composant pour animer les sections au défilement
 function AnimatedSection({ children, className, delay = 0 }: { 
@@ -31,6 +32,36 @@ function AnimatedSection({ children, className, delay = 0 }: {
 }
 
 export default function Home() {
+  const router = useRouter();
+  const [topSearchQuery, setTopSearchQuery] = useState("");
+  const [bottomSearchQuery, setBottomSearchQuery] = useState("");
+  
+  // Fonction pour naviguer vers la page analyzer avec le terme de recherche
+  const navigateToAnalyzer = (searchTerm: string = "") => {
+    if (searchTerm.trim()) {
+      router.push(`/analyzer?search=${encodeURIComponent(searchTerm.trim())}`);
+    } else {
+      router.push('/analyzer');
+    }
+  };
+  
+  // Gestionnaire pour l'icône de recherche en haut
+  const handleTopSearch = () => {
+    navigateToAnalyzer(topSearchQuery);
+  };
+  
+  // Gestionnaire pour l'icône de recherche en bas
+  const handleBottomSearch = () => {
+    navigateToAnalyzer(bottomSearchQuery);
+  };
+  
+  // Gestionnaire pour la touche Entrée
+  const handleKeyDown = (e: React.KeyboardEvent, searchQuery: string) => {
+    if (e.key === "Enter") {
+      navigateToAnalyzer(searchQuery);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen font-mono">
       <main className="flex-1">
@@ -50,11 +81,17 @@ export default function Home() {
               <AnimatedSection delay={0.2}>
                 <div className="w-full max-w-md space-y-2">
                   <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Search 
+                      className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground cursor-pointer" 
+                      onClick={handleTopSearch}
+                    />
                     <Input
                       type="search"
                       placeholder="Search SDKs & ABIs or paste any github url"
                       className="w-full pl-8 font-mono text-sm"
+                      value={topSearchQuery}
+                      onChange={(e) => setTopSearchQuery(e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, topSearchQuery)}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -64,11 +101,12 @@ export default function Home() {
               </AnimatedSection>
               <AnimatedSection delay={0.4}>
                 <div className="space-x-4">
-                  <Link href="/analyzer">
-                    <Button className="font-mono">
-                      Get Started <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
+                  <Button 
+                    className="font-mono"
+                    onClick={() => navigateToAnalyzer(topSearchQuery)}
+                  >
+                    Get Started <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
                   <Button variant="outline" className="font-mono">
                     View Documentation
                   </Button>
@@ -142,11 +180,12 @@ export default function Home() {
                     faster and more efficient.
                   </p>
                   <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                    <Link href="/analyzer">
-                      <Button className="font-mono">
-                        Try Analyzer <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </Link>
+                    <Button 
+                      className="font-mono"
+                      onClick={() => router.push('/analyzer')}
+                    >
+                      Try Analyzer <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </AnimatedSection>
@@ -212,18 +251,28 @@ export default function Home() {
             <AnimatedSection delay={0.2}>
               <div className="mx-auto w-full max-w-sm space-y-2">
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Search 
+                    className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground cursor-pointer" 
+                    onClick={handleBottomSearch}
+                  />
                   <Input
                     type="search"
                     placeholder="Search SDKs & ABIs or paste any github url"
                     className="w-full pl-8 font-mono text-sm"
+                    value={bottomSearchQuery}
+                    onChange={(e) => setBottomSearchQuery(e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, bottomSearchQuery)}
                   />
                 </div>
               </div>
             </AnimatedSection>
             <AnimatedSection delay={0.4}>
               <div className="flex justify-center mt-6">
-                <Button size="lg" className="font-mono">
+                <Button 
+                  size="lg" 
+                  className="font-mono"
+                  onClick={() => navigateToAnalyzer(bottomSearchQuery)}
+                >
                   Get Started <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
