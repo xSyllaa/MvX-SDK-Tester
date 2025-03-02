@@ -1,0 +1,718 @@
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import { useRepoData } from "@/components/repo/RepoDataProvider"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Code, HelpCircle, FileJson, Info } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { formatFileSize } from "@/lib/utils"
+import { parameterTypes, detectParameterType, generateExampleValue, ParameterType } from "@/lib/endpoint-utils"
+
+type Endpoint = {
+  path: string
+  method: string
+  description?: string
+  params?: string[]
+  body?: boolean
+  source?: string
+  lineNumber?: number
+  pathVariables?: string[]
+  jsdocDescription?: string
+  jsdocParams?: Record<string, string>
+  jsdocReturn?: string
+}
+
+type RequestParam = {
+  name: string
+  value: string
+  required?: boolean
+  isPathVariable?: boolean
+  type?: ParameterType
+  description?: string
+}
+
+// Hook personnalisé pour détecter les endpoints
+function useEndpointDetection(fileContent: string, filePath: string) {
+  const [endpoints, setEndpoints] = useState<Endpoint[]>([])
+  const [fileLanguage, setFileLanguage] = useState<string>("unknown")
+  
+  // Détecter le langage du fichier
+  useEffect(() => {
+    if (filePath) {
+      const language = getLanguageModeForFile(filePath)
+      setFileLanguage(language)
+    }
+  }, [filePath])
+  
+  // Détecter les endpoints
+  useEffect(() => {
+    if (fileContent && filePath) {
+      const detectedEndpoints = findEndpointsInFile(fileContent, filePath, fileLanguage)
+      setEndpoints(detectedEndpoints)
+    }
+  }, [fileContent, filePath, fileLanguage])
+  
+  return {
+    endpoints,
+    fileLanguage
+  }
+}
+
+// Hook personnalisé pour la sélection des endpoints
+function useEndpointSelection(endpoints: Endpoint[]) {
+  const [selectedEndpoint, setSelectedEndpoint] = useState<Endpoint | null>(null)
+  const [requestParams, setRequestParams] = useState<RequestParam[]>([])
+  
+  // Fonction pour mettre à jour un paramètre
+  const updateRequestParam = useCallback((index: number, field: 'name' | 'value', newValue: string) => {
+    setRequestParams(prevParams => {
+      const newParams = [...prevParams]
+      newParams[index][field] = newValue
+      return newParams
+    })
+  }, [])
+  
+  // Sélection d'un endpoint
+  const handleEndpointSelection = useCallback((value: string) => {
+    const [method, ...pathParts] = value.split("-")
+    const path = pathParts.join("-")
+    const endpointBasic = { method, path } as Endpoint
+    
+    // Trouver l'endpoint complet avec ses métadonnées
+    const fullEndpoint = endpoints.find(e => e.method === method && e.path === path) || endpointBasic
+    
+    setSelectedEndpoint(fullEndpoint)
+    
+    // Générer des paramètres suggérés qui incluent les variables de chemin
+    const suggestedParams = generateSuggestedParams(fullEndpoint)
+    setRequestParams(suggestedParams)
+  }, [endpoints])
+  
+  return {
+    selectedEndpoint,
+    requestParams,
+    updateRequestParam,
+    handleEndpointSelection
+  }
+}
+
+// Fonction pour déterminer les endpoints en fonction du langage et du contenu du fichier
+const findEndpointsInFile = (content: string, path: string, language: string): Endpoint[] => {
+  const detectedEndpoints: Endpoint[] = []
+  
+  // Vérifier si c'est un fichier de routes NextJS
+  if (path.includes("/app/api/") || path.includes("/pages/api/")) {
+    // Chercher les définitions de routes dans les fichiers API NextJS
+    const httpMethods = ["GET", "POST", "PUT", "DELETE", "PATCH"]
+    
+    for (const method of httpMethods) {
+      const regex = new RegExp(`export\\s+(?:async\\s+)?function\\s+${method}\\s*\\(`, "g")
+      if (regex.test(content)) {
+        const routePath = path.replace(/\.(js|ts)x?$/, "")
+          .replace(/\/route$/, "")
+          .replace(/^.*\/app\/api/, "/api")
+          .replace(/^.*\/pages\/api/, "/api")
+          .replace(/\/\[([^\]]+)\]/g, "/:$1")
+        
+        detectedEndpoints.push({
+          path: routePath,
+          method: method
+        })
+      }
+    }
+    
+    // Si c'est un fichier 'route.js/ts', chercher les méthodes handler
+    if (path.includes("/route.")) {
+      const routePath = path.replace(/\.(js|ts)x?$/, "")
+        .replace(/\/route$/, "")
+        .replace(/^.*\/app\/api/, "/api")
+        .replace(/\/\[([^\]]+)\]/g, "/:$1")
+      
+      for (const method of httpMethods) {
+        const regex = new RegExp(`export\\s+(?:async\\s+)?function\\s+${method}\\s*\\(`, "g")
+        if (regex.test(content)) {
+          detectedEndpoints.push({
+            path: routePath,
+            method: method
+          })
+        }
+      }
+    }
+  }
+  
+  // Détection spécifique pour TypeScript/JavaScript (SDK ou autres APIs)
+  if (language === "typescript" || language === "javascript") {
+    // Fonction pour extraire les commentaires JSDoc pour une méthode
+    const extractJSDocComment = (methodIndex: number): { description: string, params: Record<string, string>, returns: string } => {
+      // Chercher le commentaire JSDoc qui précède la méthode
+      const beforeMethod = content.substring(0, methodIndex);
+      const commentEndIndex = beforeMethod.lastIndexOf('*/');
+      
+      if (commentEndIndex === -1) {
+        return { description: '', params: {}, returns: '' };
+      }
+      
+      const commentStartIndex = beforeMethod.lastIndexOf('/**', commentEndIndex);
+      
+      if (commentStartIndex === -1) {
+        return { description: '', params: {}, returns: '' };
+      }
+      
+      const jsdocComment = beforeMethod.substring(commentStartIndex, commentEndIndex + 2);
+      
+      // Extraire la description principale
+      const mainDescriptionMatch = jsdocComment.match(/\/\*\*\s*([\s\S]*?)(?:\s*@|\s*\*\/)/);
+      const mainDescription = mainDescriptionMatch 
+        ? mainDescriptionMatch[1].replace(/^\s*\*\s*/gm, '').trim() 
+        : '';
+      
+      // Extraire les paramètres
+      const paramRegex = /@param\s+\{[^}]*\}\s+(\w+)\s+-\s+([\s\S]*?)(?=\s*@|\s*\*\/)/g;
+      const params: Record<string, string> = {};
+      let paramMatch;
+      
+      while ((paramMatch = paramRegex.exec(jsdocComment)) !== null) {
+        const paramName = paramMatch[1];
+        const paramDescription = paramMatch[2].replace(/^\s*\*\s*/gm, '').trim();
+        params[paramName] = paramDescription;
+      }
+      
+      // Extraire la valeur de retour
+      const returnsMatch = jsdocComment.match(/@returns\s+\{[^}]*\}\s+([\s\S]*?)(?=\s*@|\s*\*\/)/);
+      const returns = returnsMatch 
+        ? returnsMatch[1].replace(/^\s*\*\s*/gm, '').trim() 
+        : '';
+      
+      return { description: mainDescription, params, returns };
+    };
+
+    // Recherche de méthodes qui font des appels API
+    const apiMethodRegex = /(?:public|private)?\s+(\w+)\s*=\s*async\s*\(\s*([^)]*)\)\s*(?::\s*Promise<[^>]+>)?\s*=>\s*\{[\s\S]*?(?:this\.api\.fetchWithTimeout|fetch)\s*<[^>]*>\s*\(\s*['"`](\/[^'"`]+)['"`]/g;
+    
+    let match;
+    while ((match = apiMethodRegex.exec(content)) !== null) {
+      const methodName = match[1];
+      const parameters = match[2];
+      let endpoint = match[3];
+      
+      // Extraire les commentaires JSDoc
+      const jsdoc = extractJSDocComment(match.index);
+      
+      // Déterminer la méthode HTTP en fonction du nom de la méthode
+      let httpMethod = "GET";
+      if (methodName.toLowerCase().includes('post')) httpMethod = "POST";
+      else if (methodName.toLowerCase().includes('put')) httpMethod = "PUT";
+      else if (methodName.toLowerCase().includes('delete')) httpMethod = "DELETE";
+      else if (methodName.toLowerCase().includes('patch')) httpMethod = "PATCH";
+      
+      // Ajouter l'endpoint détecté
+      detectedEndpoints.push({
+        path: endpoint,
+        method: httpMethod,
+        description: `SDK Method: ${methodName}(${parameters})`,
+        source: path,
+        lineNumber: getLineNumber(content, match.index),
+        jsdocDescription: jsdoc.description,
+        jsdocParams: jsdoc.params,
+        jsdocReturn: jsdoc.returns
+      });
+    }
+    
+    // Détection pour les modules SDK (comme XOXNO)
+    if (content.includes('XOXNOClient') || path.includes('xoxno') || path.includes('XOXNO')) {
+      // Recherche des méthodes d'API spécifiques
+      const xoxnoMethodRegex = /(?:public|private)?\s+(\w+)\s*=?\s*(?:async)?\s*\(([^)]*)\)/g;
+      
+      while ((match = xoxnoMethodRegex.exec(content)) !== null) {
+        const methodName = match[1];
+        const parameters = match[2];
+        
+        // Ignorer les constructeurs et méthodes privées/internes
+        if (methodName === 'constructor' || methodName.startsWith('_')) continue;
+        
+        // Extraire les commentaires JSDoc
+        const jsdoc = extractJSDocComment(match.index);
+        
+        // Déterminer le chemin d'endpoint en fonction du module et de la méthode
+        let endpoint = '';
+        if (path.includes('NFTModule') || path.toLowerCase().includes('nft')) {
+          if (methodName === 'getDailyTrending') {
+            endpoint = '/nfts/getDailyTrending';
+          } else if (methodName === 'search') {
+            endpoint = '/nft/search/query';
+          }
+        } else if (path.includes('CollectionModule') || path.toLowerCase().includes('collection')) {
+          if (methodName === 'getCollectionProfile') {
+            endpoint = '/collection/${collectionId}/profile';
+          } else if (methodName === 'getFloorPrice') {
+            endpoint = '/collection/${collectionId}/floor-price';
+          }
+        }
+        
+        // Si un endpoint a été déterminé, l'ajouter à la liste
+        if (endpoint) {
+          // Extraire les variables de chemin de l'endpoint
+          const pathVariables = [];
+          const pathVarRegex = /\$\{([^}]+)\}/g;
+          let pathVarMatch;
+          while ((pathVarMatch = pathVarRegex.exec(endpoint)) !== null) {
+            pathVariables.push(pathVarMatch[1]);
+          }
+          
+          detectedEndpoints.push({
+            path: endpoint,
+            method: 'GET',
+            description: `SDK Method: ${methodName}(${parameters})`,
+            source: path,
+            lineNumber: getLineNumber(content, match.index),
+            pathVariables: pathVariables.length > 0 ? pathVariables : undefined,
+            jsdocDescription: jsdoc.description,
+            jsdocParams: jsdoc.params,
+            jsdocReturn: jsdoc.returns
+          });
+        }
+      }
+    }
+  }
+  
+  // Possibilité d'ajouter d'autres détecteurs spécifiques au langage ici
+  
+  return detectedEndpoints
+}
+
+// Fonction utilitaire pour obtenir le numéro de ligne à partir d'un index dans le texte
+const getLineNumber = (text: string, index: number): number => {
+  return text.substring(0, index).split('\n').length;
+};
+
+// Fonction pour générer des paramètres suggérés à partir d'un endpoint
+const generateSuggestedParams = (endpoint: Endpoint): RequestParam[] => {
+  const params: RequestParam[] = [];
+  
+  // Ajouter d'abord les variables de chemin comme paramètres
+  if (endpoint.pathVariables && endpoint.pathVariables.length > 0) {
+    for (const varName of endpoint.pathVariables) {
+      // Détecter le type du paramètre
+      const paramType = detectParameterType(varName);
+      
+      // Utiliser la description JSDoc si disponible
+      const jsdocParamDescription = endpoint.jsdocParams?.[varName];
+      
+      params.push({ 
+        name: varName, 
+        value: generateExampleValue(paramType, varName), 
+        required: true,
+        isPathVariable: true,
+        type: paramType,
+        description: jsdocParamDescription || `Variable de chemin pour ${varName}`
+      });
+    }
+  }
+  
+  // Si c'est un SDK endpoint et qu'il a des paramètres déterminés
+  if (endpoint.params && endpoint.params.length > 0) {
+    for (const param of endpoint.params) {
+      if (param !== 'this' && param !== 'args' && !param.includes('{')) {
+        // Vérifier si ce paramètre n'est pas déjà dans la liste (pour éviter les doublons)
+        if (!params.some(p => p.name === param)) {
+          const paramType = detectParameterType(param);
+          
+          params.push({ 
+            name: param, 
+            value: generateExampleValue(paramType, param), 
+            required: true,
+            type: paramType
+          });
+        }
+      }
+    }
+  }
+  
+  // Ajouter des paramètres courants selon l'URL
+  if (endpoint.path.includes('?')) {
+    // Extraire les paramètres déjà dans l'URL
+    const urlParams = new URLSearchParams(endpoint.path.split('?')[1]);
+    urlParams.forEach((value, key) => {
+      // Éviter les doublons avec les variables de chemin
+      if (!params.some(p => p.name === key)) {
+        const paramType = detectParameterType(key);
+        
+        params.push({ 
+          name: key, 
+          value: value || generateExampleValue(paramType, key), 
+          required: true,
+          type: paramType
+        });
+      }
+    });
+  }
+  
+  // Ajouter des paramètres suggérés selon le type d'endpoint
+  if (endpoint.path.includes('/query') || endpoint.path.includes('/search')) {
+    if (!params.some(p => p.name === 'top')) {
+      params.push({ 
+        name: 'top', 
+        value: '10', 
+        required: true,
+        type: 'number',
+        description: 'Nombre maximum d\'éléments à retourner'
+      });
+    }
+    if (!params.some(p => p.name === 'skip')) {
+      params.push({ 
+        name: 'skip', 
+        value: '0', 
+        required: true,
+        type: 'number',
+        description: 'Nombre d\'éléments à ignorer (pagination)'
+      });
+    }
+  }
+  
+  // Analyser le nom de la méthode pour identifier des paramètres supplémentaires pertinents
+  if (endpoint.description) {
+    const methodName = endpoint.description.match(/SDK Method: (\w+)/)?.[1]?.toLowerCase();
+    
+    if (methodName) {
+      // Méthodes liées aux collections
+      if (methodName.includes('collection') && !params.some(p => p.name === 'collection')) {
+        params.push({
+          name: 'collection',
+          value: '',
+          required: true,
+          type: 'string',
+          description: 'Identifiant de la collection'
+        });
+      }
+      
+      // Méthodes liées aux utilisateurs
+      if (methodName.includes('user') && !params.some(p => p.name === 'userId')) {
+        params.push({
+          name: 'userId',
+          value: '',
+          required: true,
+          type: 'id',
+          description: 'Identifiant de l\'utilisateur'
+        });
+      }
+      
+      // Méthodes liées aux NFT
+      if (methodName.includes('nft') && !params.some(p => p.name === 'identifier')) {
+        params.push({
+          name: 'identifier',
+          value: '',
+          required: true,
+          type: 'id',
+          description: 'Identifiant du NFT'
+        });
+      }
+    }
+  }
+  
+  return params;
+}
+
+// Sous-composant pour afficher les endpoints
+function EndpointSelector({ endpoints, selectedValue, onValueChange }: {
+  endpoints: Endpoint[];
+  selectedValue: string;
+  onValueChange: (value: string) => void;
+}) {
+  return (
+    <div className="mb-4">
+      <div className="flex justify-between items-center mb-1">
+        <label className="text-sm font-medium block">
+          Sélectionner un endpoint
+        </label>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                <HelpCircle size={14} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" align="end" className="max-w-sm">
+              <div className="space-y-1 text-xs">
+                <p><strong>Type d'endpoint: {endpoints.length > 0 && endpoints[0].path.startsWith('/') ? 'Route API' : 'Méthode SDK'}</strong></p>
+                <p>
+                  {endpoints.length > 0 && endpoints[0].path.startsWith('/') 
+                    ? "Ce fichier contient des routes API Next.js qui peuvent être appelées directement." 
+                    : "Ce fichier contient des méthodes SDK qui effectuent des appels API."}
+                </p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+      
+      {/* Interface de sélection en deux colonnes avec scrollbar */}
+      <div className="border rounded-md overflow-hidden">
+        <div className="max-h-96 overflow-y-auto p-1">
+          <div className="grid grid-cols-2 gap-3">
+            {endpoints.map((endpoint, index) => (
+              <div 
+                key={index}
+                onClick={() => onValueChange(`${endpoint.method}-${endpoint.path}`)}
+                className={`
+                  p-3 rounded-md cursor-pointer hover:bg-muted/50 transition-colors
+                  ${selectedValue === `${endpoint.method}-${endpoint.path}` ? 'bg-muted border-2 border-primary/50' : 'border border-muted/50'}
+                `}
+              >
+                <div className="flex items-start gap-2">
+                  <span className={`
+                    inline-block px-2 py-0.5 text-xs font-medium rounded shrink-0
+                    ${endpoint.method === 'GET' ? 'bg-green-100 text-green-800' : ''}
+                    ${endpoint.method === 'POST' ? 'bg-blue-100 text-blue-800' : ''}
+                    ${endpoint.method === 'PUT' ? 'bg-yellow-100 text-yellow-800' : ''}
+                    ${endpoint.method === 'DELETE' ? 'bg-red-100 text-red-800' : ''}
+                    ${endpoint.method === 'PATCH' ? 'bg-purple-100 text-purple-800' : ''}
+                  `}>
+                    {endpoint.method}
+                  </span>
+                  <span className="break-all text-sm leading-tight">{endpoint.path}</span>
+                </div>
+                {endpoint.description && (
+                  <div className="text-xs text-muted-foreground mt-1.5 ml-0 leading-tight">
+                    {endpoint.source ? (
+                      <span className="font-medium">{endpoint.source}: </span>
+                    ) : ""}
+                    {endpoint.description}
+                  </div>
+                )}
+                {/* Afficher la description JSDoc si disponible */}
+                {endpoint.jsdocDescription && (
+                  <div className="text-xs mt-1.5 mb-1 ml-0 leading-tight text-muted-foreground">
+                    {endpoint.jsdocDescription}
+                  </div>
+                )}
+                {endpoint.lineNumber && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    <span className="font-medium">Ligne: {endpoint.lineNumber}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      
+      {/* Affichage de l'endpoint sélectionné */}
+      {selectedValue && endpoints.find(e => `${e.method}-${e.path}` === selectedValue) && (
+        <div className="mt-4 bg-muted/20 p-3 rounded-md border">
+          <div className="text-sm mb-2">
+            <span className="text-muted-foreground">Sélectionné: </span>
+            <span className="font-medium">
+              {endpoints.find(e => `${e.method}-${e.path}` === selectedValue)?.path}
+            </span>
+          </div>
+          
+          {/* Afficher la description complète JSDoc pour l'endpoint sélectionné */}
+          {(() => {
+            const selectedEndpoint = endpoints.find(e => `${e.method}-${e.path}` === selectedValue);
+            if (!selectedEndpoint?.jsdocDescription) return null;
+            
+            return (
+              <div className="text-sm">
+                <p className="mb-2">{selectedEndpoint.jsdocDescription}</p>
+                
+                {selectedEndpoint.jsdocReturn && (
+                  <div className="mt-2">
+                    <span className="font-medium">Retourne: </span>
+                    <span>{selectedEndpoint.jsdocReturn}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Sous-composant pour afficher les paramètres
+function ParametersEditor({ params, updateParam }: {
+  params: RequestParam[];
+  updateParam: (index: number, field: 'name' | 'value', value: string) => void;
+}) {
+  return (
+    <div className="mb-4">
+      <h3 className="text-sm font-medium mb-2">Paramètres</h3>
+      {params.length === 0 ? (
+        <div className="text-sm text-muted-foreground p-4 text-center border rounded-md">
+          Aucun paramètre détecté pour cet endpoint
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {params.map((param, index) => (
+            <div key={index} className="space-y-2">
+              <div className="flex gap-2 items-center">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-xs font-medium">{param.name}</label>
+                    {param.type && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${parameterTypes[param.type].color}`}>
+                        {parameterTypes[param.type].label}
+                      </span>
+                    )}
+                    {param.isPathVariable && (
+                      <span className="text-xs bg-cyan-100 text-cyan-800 px-2 py-0.5 rounded-full">
+                        path
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    placeholder="Valeur"
+                    value={param.value}
+                    onChange={(e) => updateParam(index, 'value', e.target.value)}
+                    className={`w-full ${param.isPathVariable ? 'border-cyan-300' : ''}`}
+                  />
+                </div>
+              </div>
+              {param.description && (
+                <div className="text-xs text-muted-foreground flex items-start gap-1.5 ml-1">
+                  <Info className="h-3 w-3 mt-0.5" />
+                  <span>{param.description}</span>
+                </div>
+              )}
+              {param.type && !param.description && (
+                <div className="text-xs text-muted-foreground flex items-start gap-1.5 ml-1">
+                  <Info className="h-3 w-3 mt-0.5" />
+                  <span>{parameterTypes[param.type].description}</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Composant pour afficher des informations sur le fichier
+function LanguageInfo({ language, filePath }: { language: string; filePath: string }) {
+  return (
+    <Alert className="mb-4">
+      <div className="flex items-center gap-2">
+        <FileJson className="h-4 w-4" />
+        <AlertDescription>
+          <span className="font-medium">Type de fichier:</span> {language} 
+          {filePath && <span className="text-muted-foreground ml-2">({filePath})</span>}
+        </AlertDescription>
+      </div>
+    </Alert>
+  );
+}
+
+// Composant principal
+export function EndpointTesterV2() {
+  const { selectedFile } = useRepoData()
+  
+  // État pour stocker le contenu du fichier sélectionné et son chemin
+  const [fileContent, setFileContent] = useState<string>("")
+  const [filePath, setFilePath] = useState<string>("")
+  
+  // Mise à jour du contenu et du chemin lorsque le fichier sélectionné change
+  useEffect(() => {
+    if (selectedFile && selectedFile.content) {
+      setFileContent(selectedFile.content)
+      setFilePath(selectedFile.path || "")
+    }
+  }, [selectedFile])
+  
+  // Utiliser les hooks personnalisés
+  const { endpoints, fileLanguage } = useEndpointDetection(fileContent, filePath)
+  const { selectedEndpoint, requestParams, updateRequestParam, handleEndpointSelection } = useEndpointSelection(endpoints)
+  
+  return (
+    <div className="rounded-lg border bg-background shadow-sm">
+      <div className="p-4 border-b">
+        <h2 className="text-lg font-semibold">Explorateur d'Endpoints</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          {endpoints.length} endpoints trouvés dans le fichier {filePath ? filePath.split('/').pop() : "sélectionné"}
+        </p>
+      </div>
+      
+      {endpoints.length === 0 ? (
+        <div className="p-8 text-center">
+          <div className="flex flex-col items-center justify-center">
+            <Code className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">
+              {selectedFile ? 
+                "Aucun endpoint trouvé dans ce fichier. Sélectionnez un fichier contenant des routes API ou des méthodes SDK." : 
+                "Sélectionnez un fichier pour détecter les endpoints"
+              }
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="p-4">
+          {/* Information sur le langage détecté */}
+          <LanguageInfo language={fileLanguage} filePath={filePath} />
+          
+          {/* Endpoint Selector */}
+          <EndpointSelector
+            endpoints={endpoints}
+            selectedValue={selectedEndpoint ? `${selectedEndpoint.method}-${selectedEndpoint.path}` : ""}
+            onValueChange={handleEndpointSelection}
+          />
+          
+          {/* Selected Endpoint UI */}
+          {selectedEndpoint && (
+            <>
+              {/* URL Preview */}
+              <div className="mb-4">
+                <h3 className="text-sm font-medium mb-2">URL de l'endpoint</h3>
+                <div className="p-3 bg-muted/20 border rounded-md overflow-x-auto">
+                  <code className="text-xs font-mono whitespace-nowrap">
+                    <span className="text-blue-600 font-semibold">{selectedEndpoint.method}</span> {selectedEndpoint.path}
+                  </code>
+                </div>
+              </div>
+              
+              {/* Parameters Editor */}
+              <ParametersEditor 
+                params={requestParams}
+                updateParam={updateRequestParam}
+              />
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Fonction pour déterminer le langage à partir de l'extension de fichier
+function getLanguageModeForFile(filename: string): string {
+  const extension = filename.split('.').pop()?.toLowerCase();
+  
+  const modeMap: Record<string, string> = {
+    'js': 'javascript',
+    'jsx': 'jsx',
+    'ts': 'typescript',
+    'tsx': 'typescript',
+    'html': 'htmlmixed',
+    'css': 'css',
+    'json': 'application/json',
+    'md': 'markdown',
+    'php': 'php',
+    'py': 'python',
+    'go': 'go',
+    'java': 'clike',
+    'c': 'clike',
+    'cpp': 'clike',
+    'cs': 'clike',
+    'rs': 'rust',
+    'rb': 'ruby',
+    'sh': 'shell',
+    'yml': 'yaml',
+    'yaml': 'yaml',
+    'toml': 'toml',
+  };
+  
+  return modeMap[extension || ''] || 'text/plain';
+} 

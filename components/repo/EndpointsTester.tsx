@@ -1020,7 +1020,7 @@ export function EndpointsTester() {
                 </Button>
                 {!sdkInitialized && endpointType === "sdk" && (
                   <p className="text-xs text-muted-foreground mt-2 text-center">
-                    Vous devez initialiser le SDK avant de pouvoir envoyer des requêtes.
+                    You must initialize the SDK before sending requests.
                   </p>
                 )}
               </div>

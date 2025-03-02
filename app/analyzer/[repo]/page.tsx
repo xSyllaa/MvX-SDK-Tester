@@ -7,6 +7,8 @@ import { FileTree } from "@/components/repo/FileTree"
 import { FileContent } from "@/components/repo/FileContent"
 import { useRepoData } from "@/components/repo/RepoDataProvider"
 import { EndpointsTester } from "@/components/repo/EndpointsTester"
+import { EndpointTesterV2 } from "@/components/repo/EndpointTesterV2"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useState } from "react"
 import { SDK } from "@/data/sdkData"
 
@@ -78,9 +80,25 @@ export default function AnalyzerPage() {
             </div>
           </div>
           
-          {/* Nouveau composant pour tester les endpoints */}
+          {/* Testeur d'endpoints avec choix de version */}
           <div className="mt-6">
-            <EndpointsTester />
+            <Tabs defaultValue="v2" className="w-full">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Testeur d'Endpoints</h2>
+                <TabsList>
+                  <TabsTrigger value="v1">Version Standard</TabsTrigger>
+                  <TabsTrigger value="v2">Explorateur</TabsTrigger>
+                </TabsList>
+              </div>
+              
+              <TabsContent value="v1">
+                <EndpointsTester />
+              </TabsContent>
+              
+              <TabsContent value="v2">
+                <EndpointTesterV2 />
+              </TabsContent>
+            </Tabs>
           </div>
         </RepoDataProvider>
       </div>
