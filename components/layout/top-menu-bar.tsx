@@ -1,15 +1,89 @@
 "use client"
 
-import { useState, KeyboardEvent } from "react"
+import { useState, KeyboardEvent, useEffect } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { Search, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { motion, AnimatePresence } from "framer-motion"
+
+// Composant de lien animé avec une barre qui se remplit au hover
+function AnimatedLink({ 
+  href, 
+  children, 
+  className,
+  onClick,
+  active = false
+}: { 
+  href: string; 
+  children: React.ReactNode; 
+  className?: string;
+  onClick?: () => void;
+  active?: boolean;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  // Variantes pour l'animation de la barre
+  const barVariants = {
+    initial: { 
+      width: 0,
+      left: "100%"
+    },
+    enter: { 
+      width: "100%", 
+      left: 0,
+      transition: { 
+        width: { duration: 0.4, ease: [0.65, 0, 0.35, 1] },
+        left: { duration: 0 } 
+      }
+    },
+    exit: { 
+      width: 0,
+      left: "100%",
+      transition: { 
+        width: { duration: 0.3, ease: "easeInOut" }, 
+        left: { duration: 0.3, ease: "easeInOut" } 
+      }
+    }
+  };
+  
+  // Gérer les événements de souris de manière plus robuste
+  const handleMouseEnter = () => setIsHovered(true);
+  const handleMouseLeave = () => setIsHovered(false);
+  
+  return (
+    <Link 
+      href={href} 
+      className={`relative group flex flex-col items-center justify-center ${className || ""}`}
+      onClick={onClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <span className={`transition-colors duration-300 ${active ? 'text-foreground font-medium' : 'group-hover:text-foreground text-foreground/60'}`}>
+        {children}
+      </span>
+      <div className="absolute -bottom-1 left-0 w-full h-[2.5px] overflow-hidden">
+        <AnimatePresence>
+          {(isHovered || active) && (
+            <motion.div
+              className="absolute top-0 left-0 h-full bg-foreground rounded-sm shadow-glow"
+              initial="initial"
+              animate="enter"
+              exit="exit"
+              variants={barVariants}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </Link>
+  );
+}
 
 export function TopMenuBar() {
   const router = useRouter()
+  const pathname = usePathname()
   const [searchText, setSearchText] = useState("")
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   
@@ -52,8 +126,20 @@ export function TopMenuBar() {
     setMobileMenuOpen(!mobileMenuOpen)
   }
 
+  // Déterminer le chemin actuel pour mettre en surbrillance le lien actif
+  const isActive = (path: string): boolean => {
+    if (!pathname) return false;
+    return pathname.startsWith(path);
+  };
+
   return (
     <>
+      <style jsx global>{`
+        .shadow-glow {
+          box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+        }
+      `}</style>
+      
       {/* Barre principale */}
       <header className="sticky top-0 z-10 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center">
@@ -104,12 +190,12 @@ export function TopMenuBar() {
             {/* 3. Partie droite - Navigation */}
             <div className="flex justify-end items-center">
               <nav className="flex items-center space-x-6 text-sm font-medium">
-                <Link href="/analyzer" className="transition-colors hover:text-foreground/80 text-foreground/60">
+                <AnimatedLink href="/analyzer" active={isActive('/analyzer')}>
                   Analyzer
-                </Link>
-                <Link href="/key-components" className="transition-colors hover:text-foreground/80 text-foreground/60">
+                </AnimatedLink>
+                <AnimatedLink href="/key-components" active={isActive('/key-components')}>
                   Components
-                </Link>
+                </AnimatedLink>
               </nav>
               <div className="ml-6">
                 <ThemeToggle />
@@ -140,20 +226,22 @@ export function TopMenuBar() {
               </div>
               
               <div className="flex flex-col space-y-4 pb-4">
-                <Link 
+                <AnimatedLink 
                   href="/analyzer" 
-                  className="py-2 text-lg transition-colors hover:text-foreground/80"
+                  className="py-2 text-lg"
                   onClick={toggleMobileMenu}
+                  active={isActive('/analyzer')}
                 >
                   Analyzer
-                </Link>
-                <Link 
+                </AnimatedLink>
+                <AnimatedLink 
                   href="/key-components" 
-                  className="py-2 text-lg transition-colors hover:text-foreground/80"
+                  className="py-2 text-lg"
                   onClick={toggleMobileMenu}
+                  active={isActive('/key-components')}
                 >
                   Components
-                </Link>
+                </AnimatedLink>
               </div>
             </div>
           </div>
