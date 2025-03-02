@@ -8,6 +8,7 @@ import { FileContent } from "@/components/repo/FileContent"
 import { useRepoData } from "@/components/repo/RepoDataProvider"
 import { EndpointsTester } from "@/components/repo/EndpointsTester"
 import { EndpointTesterV2 } from "@/components/repo/EndpointTesterV2"
+import { ChatInterface } from "@/components/chat/ChatInterface"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useState } from "react"
 import { SDK } from "@/data/sdkData"
@@ -100,6 +101,9 @@ export default function AnalyzerPage() {
               </TabsContent>
             </Tabs>
           </div>
+
+          {/* Chat Assistant */}
+          <ChatInterface context={`Current repository: ${repoPath}`} />
         </RepoDataProvider>
       </div>
     </main>
