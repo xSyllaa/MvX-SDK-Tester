@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
-import { Bot, Send, User, Loader2, Minimize2, X, Info } from 'lucide-react';
+import { Bot, Send, User, Loader2, Minimize2, X, Info, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { readStreamableValue } from 'ai/rsc';
 import { useChat } from './chat-provider';
@@ -116,27 +116,45 @@ export function ChatInterface() {
         setHasAddedContext(true);
       }
 
-      // Mettre à jour l'UI avec le message utilisateur
-      setMessages(prev => [...prev, userMessage]);
+      // Mettre à jour l'UI avec le message utilisateur et vider l'input
       setInput('');
+      setMessages(prev => [...prev, userMessage]);
 
       // Obtenir la réponse de l'IA avec streaming
       const { newMessage } = await continueConversation(messagesToSend);
       
       let textContent = '';
       let lastUpdate = Date.now();
+      const assistantMessage = { role: 'assistant' as const, content: '' };
+      setMessages(prev => [...prev, assistantMessage]);
+
       for await (const delta of readStreamableValue(newMessage)) {
         textContent = `${textContent}${delta}`;
         
         // Limiter les mises à jour de l'UI à une fois toutes les 100ms pour de meilleures performances
         const now = Date.now();
         if (now - lastUpdate > 100) {
-          setMessages(prev => [...prev.slice(0, -1), { role: 'assistant' as const, content: textContent }]);
+          setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = {
+              role: 'assistant',
+              content: textContent
+            };
+            return newMessages;
+          });
           lastUpdate = now;
         }
       }
-      // Mise à jour finale pour s'assurer que tout le contenu est affiché
-      setMessages(prev => [...prev.slice(0, -1), { role: 'assistant' as const, content: textContent }]);
+
+      // Mise à jour finale
+      setMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = {
+          role: 'assistant',
+          content: textContent
+        };
+        return newMessages;
+      });
     } catch (err: any) {
       console.error('Error:', err);
       setError(err.message || "An error occurred");
@@ -425,6 +443,18 @@ function ChatInput({ input, setInput, handleSend, isLoading, inputRef }: ChatInp
 }
 
 function CodeBlock({ code, language }: { code: string; language?: string }) {
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   const getLanguageExtension = (lang?: string) => {
     switch (lang?.toLowerCase()) {
       case 'javascript':
@@ -461,32 +491,51 @@ function CodeBlock({ code, language }: { code: string; language?: string }) {
   };
 
   return (
-    <div className="rounded-md overflow-hidden my-2 border">
-      <CodeMirror
-        value={code}
-        height="auto"
-        theme="dark"
-        basicSetup={{
-          lineNumbers: true,
-          highlightActiveLineGutter: false,
-          highlightActiveLine: false,
-          foldGutter: false,
-        }}
-        editable={false}
-        extensions={[
-          getLanguageExtension(language),
-          EditorView.lineWrapping,
-          EditorView.theme({
-            "&": {
-              backgroundColor: "transparent !important"
-            },
-            ".cm-gutters": {
-              backgroundColor: "transparent !important",
-              border: "none"
-            }
-          })
-        ]}
-      />
+    <div className="rounded-md overflow-hidden my-2 border border-border">
+      <div className="flex items-center justify-between px-4 py-2 bg-muted border-b border-border">
+        <div className="text-sm text-muted-foreground">
+          {language || 'javascript'}
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={handleCopy}
+        >
+          {isCopied ? (
+            <Check className="h-4 w-4 text-green-500" />
+          ) : (
+            <Copy className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
+      <div className="p-4 bg-muted/50">
+        <CodeMirror
+          value={code}
+          height="auto"
+          theme="dark"
+          basicSetup={{
+            lineNumbers: true,
+            highlightActiveLineGutter: false,
+            highlightActiveLine: false,
+            foldGutter: false,
+          }}
+          editable={false}
+          extensions={[
+            getLanguageExtension(language),
+            EditorView.lineWrapping,
+            EditorView.theme({
+              "&": {
+                backgroundColor: "transparent !important"
+              },
+              ".cm-gutters": {
+                backgroundColor: "transparent !important",
+                border: "none"
+              }
+            })
+          ]}
+        />
+      </div>
     </div>
   );
 }
