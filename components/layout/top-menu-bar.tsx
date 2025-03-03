@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { motion, AnimatePresence } from "framer-motion"
+import { ConnectWallet } from "@/app/components/wallet/connect-wallet"
 
 // Composant de lien animé avec une barre qui se remplit au hover
 function AnimatedLink({ 
@@ -149,6 +150,7 @@ export function TopMenuBar() {
               MvX SDK Analyzer
             </Link>
             <div className="ml-auto flex items-center gap-2">
+              <ConnectWallet />
               <ThemeToggle />
               <Button 
                 variant="ghost" 
@@ -197,7 +199,8 @@ export function TopMenuBar() {
                   Components
                 </AnimatedLink>
               </nav>
-              <div className="ml-6">
+              <div className="ml-6 flex items-center gap-2">
+                <ConnectWallet />
                 <ThemeToggle />
               </div>
             </div>

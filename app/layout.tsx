@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ChatProvider } from "@/components/chat/chat-provider"
 import { ChatToggle } from "@/components/chat/chat-toggle"
 import { ChatInterface } from "@/components/chat/ChatInterface"
+import { MultiversXProvider } from "@/app/providers/dapp-provider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -32,21 +33,23 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ChatProvider>
-            <TooltipProvider>
-              <div className="flex flex-col min-h-screen">
-                <TopMenuBar />
-                <div className="flex-1 flex flex-col lg:flex-row relative">
-                  <div className="flex-1 min-w-0 transition-all duration-300 lg:pr-[var(--chat-width,0px)] overflow-x-hidden">
-                    {children}
+          <MultiversXProvider>
+            <ChatProvider>
+              <TooltipProvider>
+                <div className="flex flex-col min-h-screen">
+                  <TopMenuBar />
+                  <div className="flex-1 flex flex-col lg:flex-row relative">
+                    <div className="flex-1 min-w-0 transition-all duration-300 lg:pr-[var(--chat-width,0px)] overflow-x-hidden">
+                      {children}
+                    </div>
+                    <ChatInterface />
                   </div>
-                  <ChatInterface />
+                  <Footer />
                 </div>
-                <Footer />
-              </div>
-              <ChatToggle />
-            </TooltipProvider>
-          </ChatProvider>
+                <ChatToggle />
+              </TooltipProvider>
+            </ChatProvider>
+          </MultiversXProvider>
         </ThemeProvider>
       </body>
     </html>
