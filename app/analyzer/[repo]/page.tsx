@@ -12,6 +12,7 @@ import { ChatInterface } from "@/components/chat/ChatInterface"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useState } from "react"
 import { SDK } from "@/data/sdkData"
+import { generateSDKContext } from "@/lib/chat-context"
 
 // Composant qui utilise le contexte pour rendre le contenu du fichier
 function FileContentWrapper() {
@@ -103,7 +104,7 @@ export default function AnalyzerPage() {
           </div>
 
           {/* Chat Assistant */}
-          <ChatInterface context={`Current repository: ${repoPath}`} />
+          <ChatInterface context={preloadedSDK ? generateSDKContext(preloadedSDK) : `Current repository: ${repoPath}`} />
         </RepoDataProvider>
       </div>
     </main>

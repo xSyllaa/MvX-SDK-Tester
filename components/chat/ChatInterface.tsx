@@ -11,6 +11,7 @@ import { Bot, Send, User, Loader2, Minimize2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { readStreamableValue } from 'ai/rsc';
 import { useChat } from './chat-provider';
+import ReactMarkdown from 'react-markdown';
 
 interface ChatContentProps {
   messages: Message[];
@@ -28,7 +29,7 @@ interface ChatInputProps {
 }
 
 export function ChatInterface({ context }: { context?: string }) {
-  const { isChatVisible, hideChat } = useChat();
+  const { isChatVisible, hideChat, chatWidth, startResizing } = useChat();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -36,6 +37,13 @@ export function ChatInterface({ context }: { context?: string }) {
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Log du contexte au montage du composant
+  useEffect(() => {
+    if (context) {
+      console.log('Contexte du chatbot:', context);
+    }
+  }, [context]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -151,10 +159,18 @@ export function ChatInterface({ context }: { context?: string }) {
   const desktopInterface = isChatVisible && (
     <div className={cn(
       "hidden lg:flex flex-col border-l bg-background shadow-lg",
-      "fixed top-[4rem] right-0 bottom-0 w-[400px]",
-      "transition-transform duration-300",
+      "fixed top-[4rem] right-0 bottom-0",
+      "transition-transform duration-300 z-50",
       !isChatVisible && "translate-x-full"
-    )}>
+    )}
+    style={{ width: `${chatWidth}px` }}
+    >
+      <div 
+        className="absolute left-[-6px] top-0 bottom-0 w-3 cursor-ew-resize hover:bg-primary/20 group z-[100]"
+        onMouseDown={startResizing}
+      >
+        <div className="absolute left-[5px] top-0 bottom-0 w-[2px] bg-border group-hover:bg-primary/50 group-active:bg-primary" />
+      </div>
       <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center space-x-3">
           <Avatar className="h-8 w-8">
@@ -246,7 +262,13 @@ function ChatContent({ messages, error, isLoading, scrollRef }: ChatContentProps
                   : "bg-muted"
               )}
             >
-              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              {message.role === 'user' ? (
+                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              ) : (
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                </div>
+              )}
             </div>
           </div>
         ))}

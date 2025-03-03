@@ -16,6 +16,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Card } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
+import { generateHomeContext } from "@/lib/chat-context"
+import { ChatInterface } from "@/components/chat/ChatInterface"
 
 // Icônes pour chaque catégorie
 const CategoryIcons: Record<TagCategory, React.ReactNode> = {
@@ -190,6 +192,9 @@ export default function AnalyzerPage() {
               Browse and analyze MultiversX SDKs or search for a specific SDK by name, description, or tags.
             </p>
           </div>
+
+          {/* Chat Assistant */}
+          <ChatInterface context={generateHomeContext()} />
 
           {/* Zone de recherche */}
           <div className="flex flex-col sm:flex-row gap-4">
