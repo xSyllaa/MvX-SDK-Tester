@@ -6,6 +6,9 @@ import { TopMenuBar } from "@/components/layout/top-menu-bar"
 import { Footer } from "@/components/layout/footer"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeProvider } from "@/components/theme-provider"
+import { ChatProvider } from "@/components/chat/chat-provider"
+import { ChatToggle } from "@/components/chat/chat-toggle"
+import { ChatInterface } from "@/components/chat/ChatInterface"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -29,11 +32,23 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <TooltipProvider>
-            <TopMenuBar />
-            {children}
-            <Footer />
-          </TooltipProvider>
+          <ChatProvider>
+            <TooltipProvider>
+              <div className="flex flex-col min-h-screen">
+                <TopMenuBar />
+                <div className="flex-1 flex flex-col lg:flex-row relative">
+                  <div className="flex-1 flex justify-center transition-all duration-300">
+                    <div className="w-full px-4 lg:px-8">
+                      {children}
+                    </div>
+                  </div>
+                  <ChatInterface />
+                </div>
+                <Footer />
+              </div>
+              <ChatToggle />
+            </TooltipProvider>
+          </ChatProvider>
         </ThemeProvider>
       </body>
     </html>
