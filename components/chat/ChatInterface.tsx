@@ -120,20 +120,22 @@ export function ChatInterface() {
       setInput('');
       setMessages(prev => [...prev, userMessage]);
 
+      // Ajouter un message vide pour l'assistant
+      const assistantMessage = { role: 'assistant' as const, content: '' };
+      setMessages(prev => [...prev, assistantMessage]);
+
       // Obtenir la réponse de l'IA avec streaming
       const { newMessage } = await continueConversation(messagesToSend);
       
       let textContent = '';
       let lastUpdate = Date.now();
-      const assistantMessage = { role: 'assistant' as const, content: '' };
-      setMessages(prev => [...prev, assistantMessage]);
 
       for await (const delta of readStreamableValue(newMessage)) {
         textContent = `${textContent}${delta}`;
         
-        // Limiter les mises à jour de l'UI à une fois toutes les 100ms pour de meilleures performances
+        // Mettre à jour plus fréquemment pour une meilleure fluidité
         const now = Date.now();
-        if (now - lastUpdate > 100) {
+        if (now - lastUpdate > 50) {  // Réduit à 50ms au lieu de 100ms
           setMessages(prev => {
             const newMessages = [...prev];
             newMessages[newMessages.length - 1] = {
@@ -175,20 +177,28 @@ export function ChatInterface() {
   }, [context]);
 
   const contextDisplay = context ? (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button variant="ghost" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground">
-            <Info className="h-3.5 w-3.5" />
-            <span className="font-bold">Context:</span>
-            <span className="truncate max-w-[200px]">{context.slice(0, 50)}...</span>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-[500px] max-h-[300px] overflow-y-auto p-4 bg-secondary z-[200]">
-          <p className="text-sm whitespace-pre-wrap">{context}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <div className="px-4 py-2 border-b">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              variant="ghost" 
+              className="w-full flex items-center justify-start gap-2 text-xs text-muted-foreground hover:text-foreground h-auto py-2"
+            >
+              <Info className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-bold shrink-0">Context:</span>
+              <span className="truncate">{context}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent 
+            side="bottom" 
+            className="max-w-[500px] max-h-[300px] overflow-y-auto p-4 bg-popover border-2 border-border shadow-lg z-[200]"
+          >
+            <p className="text-sm whitespace-pre-wrap">{context}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
   ) : null;
 
   // Mobile floating interface
@@ -360,7 +370,7 @@ function ChatContent({ messages, error, isLoading, scrollRef }: ChatContentProps
                 <div className="prose prose-sm dark:prose-invert max-w-none">
                   <ReactMarkdown
                     components={{
-                      pre: ({ children }) => <>{children}</>,
+                      pre: ({ children }) => <div className="border border-border rounded-md overflow-hidden my-2">{children}</div>,
                       code: (props) => {
                         const { className, children } = props;
                         const match = /language-(\w+)/.exec(className || '');
@@ -375,26 +385,13 @@ function ChatContent({ messages, error, isLoading, scrollRef }: ChatContentProps
                       }
                     }}
                   >
-                    {message.content}
+                    {message.content || (isLoading && message.role === 'assistant' ? '...' : '') || ''}
                   </ReactMarkdown>
                 </div>
               )}
             </div>
           </div>
         ))}
-        
-        {isLoading && (
-          <div className="flex items-center space-x-2.5">
-            <Avatar className="h-8 w-8">
-              <div className="rounded-full dark:bg-white bg-black">
-                <Bot className="h-6 w-6 m-1 dark:text-black text-white" />
-              </div>
-            </Avatar>
-            <div className="rounded-lg px-3 py-2 bg-muted">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          </div>
-        )}
       </div>
     </ScrollArea>
   );
