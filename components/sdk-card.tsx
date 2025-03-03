@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { ExternalLink, Github } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { tagCategoryColors, TagCategory, tagCategoryDescriptions, type SDK } from "@/data/sdkData"
+import { tagCategoryColors, TagCategory, tagCategoryDescriptions, type SDK, sortTagsByPriority } from "@/data/sdkData"
 import {
   Tooltip,
   TooltipContent,
@@ -68,17 +68,18 @@ export function SDKCard({ sdk, onAnalyze }: SDKCardProps) {
 
       <div className="flex flex-wrap gap-1.5 mb-4">
         <TooltipProvider delayDuration={0}>
-          {sdk.tags.map((tag) => {
+          {sortTagsByPriority(sdk.tags).map((tag) => {
             const colors = tagCategoryColors[tag.category]
             return (
               <Tooltip key={tag.name}>
                 <TooltipTrigger>
                   <Badge
                     variant="outline"
-                    className="font-mono text-[9px] leading-none lg:text-[10px] py-1 px-2 whitespace-normal break-words min-h-[20px] cursor-help"
+                    className="text-[10px] lg:text-xs py-1 px-2.5 whitespace-normal break-words min-h-[20px] cursor-help font-medium"
                     style={{
                       backgroundColor: colors.light,
                       borderColor: colors.base,
+                      color: colors.base
                     }}
                   >
                     {tag.name}

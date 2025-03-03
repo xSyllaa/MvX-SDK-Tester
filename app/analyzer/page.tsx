@@ -5,7 +5,7 @@ import Link from "next/link"
 import { ArrowLeft, Search, X, Filter, Tag as TagIcon, Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { SDKCard } from "@/components/sdk-card"
-import { sdkList, type SDK, TagCategory, tagCategoryColors, type Tag } from "@/data/sdkData"
+import { sdkList, type SDK, TagCategory, tagCategoryColors, type Tag, tagCategoryPriority } from "@/data/sdkData"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useGithubClone } from "@/hooks/useGithubClone"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -182,6 +182,11 @@ export default function AnalyzerPage() {
     }
   }
 
+  // Pour le rendu des catégories de filtres
+  const sortedCategories = Object.values(TagCategory).sort(
+    (a, b) => tagCategoryPriority[a] - tagCategoryPriority[b]
+  );
+
   return (
     <div className="flex flex-col min-h-screen font-mono">
      
@@ -236,7 +241,7 @@ export default function AnalyzerPage() {
               
               {/* Ligne de catégories */}
               <div className="flex flex-wrap gap-2">
-                {Object.values(TagCategory).map(category => (
+                {sortedCategories.map(category => (
                   <Button
                     key={category}
                     variant="outline"

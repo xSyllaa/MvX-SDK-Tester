@@ -11,13 +11,31 @@ export interface Tag {
 }
 
 export enum TagCategory {
-  LANGUAGE = "Language",
-  PURPOSE = "Purpose",
-  FRAMEWORK = "Framework",
-  PLATFORM = "Platform",
-  TECHNOLOGY = "Technology",
-  OTHER = "Other",
-  OWNER = "Owner",
+  PURPOSE = "Purpose",           // 1er - Le but principal
+  LANGUAGE = "Language",         // 2ème - Le langage utilisé
+  FRAMEWORK = "Framework",       // 3ème - Le framework
+  TECHNOLOGY = "Technology",     // 4ème - Les technologies utilisées
+  PLATFORM = "Platform",         // 5ème - Les plateformes supportées
+  OWNER = "Owner",              // 6ème - Le propriétaire
+  OTHER = "Other"               // 7ème - Autres informations
+}
+
+// Ajouter un ordre de priorité pour le tri
+export const tagCategoryPriority: { [key in TagCategory]: number } = {
+  [TagCategory.PURPOSE]: 1,
+  [TagCategory.LANGUAGE]: 2,
+  [TagCategory.FRAMEWORK]: 3,
+  [TagCategory.TECHNOLOGY]: 4,
+  [TagCategory.PLATFORM]: 5,
+  [TagCategory.OWNER]: 6,
+  [TagCategory.OTHER]: 7
+};
+
+// Fonction utilitaire pour trier les tags
+export function sortTagsByPriority(tags: Tag[]): Tag[] {
+  return [...tags].sort((a, b) => 
+    tagCategoryPriority[a.category] - tagCategoryPriority[b.category]
+  );
 }
 
 // Descriptions for each tag category

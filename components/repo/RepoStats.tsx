@@ -2,7 +2,7 @@
 
 import { Loader2 } from "lucide-react"
 import { useRepoData } from "@/components/repo/RepoDataProvider"
-import { tagCategoryColors, TagCategory, tagCategoryDescriptions, type SDK, sdkList } from '@/data/sdkData'
+import { tagCategoryColors, TagCategory, tagCategoryDescriptions, type SDK, sdkList, sortTagsByPriority } from '@/data/sdkData'
 import { useState, useEffect } from 'react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
@@ -240,7 +240,7 @@ export function RepoStats() {
             {tags.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 <TooltipProvider delayDuration={0}>
-                  {tags.map((tag, index) => {
+                  {sortTagsByPriority(tags).map((tag, index) => {
                     const category = tag.category as TagCategory;
                     const colors = tagCategoryColors[category];
                     return (
@@ -248,7 +248,7 @@ export function RepoStats() {
                         <TooltipTrigger>
                           <Badge
                             variant="outline"
-                            className="font-mono text-[9px] leading-none lg:text-[10px] py-1 px-2 whitespace-normal break-words min-h-[20px] cursor-help"
+                            className="text-[10px] lg:text-xs py-1 px-2.5 whitespace-normal break-words min-h-[20px] cursor-help font-medium"
                             style={{
                               backgroundColor: colors.light,
                               borderColor: colors.base,
