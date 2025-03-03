@@ -64,38 +64,15 @@ export function ChatInterface() {
     error,
     setError,
     context,
-    setContext,
     isChatVisible,
     chatWidth,
     hideChat,
     showChat,
     startResizing
   } = useChat();
-  const pathname = usePathname();
-  const hasAddedContextRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
-
-  // Mettre à jour le contexte en fonction de la page
-  useEffect(() => {
-    let newContext = '';
-    
-    if (pathname.includes('/analyzer')) {
-      newContext = generateFullContext(getAnalyzerContext());
-    } else if (pathname.includes('/repo')) {
-      // Le contexte du repo sera mis à jour par le composant parent
-      // qui a accès aux données du SDK
-      return;
-    } else {
-      newContext = generateFullContext(getLandingContext());
-    }
-    
-    if (newContext !== context) {
-      setContext(newContext);
-      hasAddedContextRef.current = false;
-    }
-  }, [pathname, context, setContext]);
 
   // Set chat width CSS variable
   useEffect(() => {

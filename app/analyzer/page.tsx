@@ -16,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Card } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
-import { generateHomeContext } from "@/lib/chat-context"
+import { getAnalyzerContext, generateFullContext } from "@/data/chat-contexts"
 import { ChatInterface } from "@/components/chat/ChatInterface"
 import { useChat } from '@/components/chat/chat-provider'
 
@@ -43,7 +43,7 @@ export default function AnalyzerPage() {
 
   // Générer le contexte au chargement de la page
   useEffect(() => {
-    const context = generateHomeContext();
+    const context = generateFullContext(getAnalyzerContext());
     setContext(context);
   }, [setContext]);
 

@@ -32,6 +32,14 @@ export interface RepoMetadata {
   defaultBranch?: string;
   visibility?: string;
   hasSources?: boolean;
+  isLoading: boolean;
+  error: string | null;
+  sdk?: SDK & {
+    size?: string;
+    structure?: string;
+    readme?: string;
+    last_updated?: string;
+  };
 }
 
 export interface ParsedRepo {
@@ -177,7 +185,16 @@ export function RepoDataProvider({ repoPath, children, preloadedSDK }: RepoDataP
           defaultBranch: data.default_branch,
           visibility: data.visibility,
           hasSources: true,
-          tags: preloadedSDK.tags
+          tags: preloadedSDK.tags,
+          isLoading: false,
+          error: null,
+          sdk: {
+            ...preloadedSDK,
+            size: await calculateRepoSize(),
+            structure: await getRepoStructure(),
+            readme: await fetchReadmeContent(),
+            last_updated: await getLastUpdateDate()
+          }
         }
       }
       
@@ -201,7 +218,24 @@ export function RepoDataProvider({ repoPath, children, preloadedSDK }: RepoDataP
         defaultBranch: data.default_branch,
         visibility: data.visibility,
         hasSources: true,
-        tags: tags
+        tags: tags,
+        isLoading: false,
+        error: null,
+        sdk: {
+          name: data.name,
+          fullName: data.full_name,
+          description: data.description || 'No description available',
+          stars: data.stargazers_count,
+          forks: data.forks_count,
+          language: data.language,
+          lastUpdated: data.updated_at,
+          owner: data.owner.login,
+          repoUrl: data.html_url,
+          defaultBranch: data.default_branch,
+          visibility: data.visibility,
+          hasSources: true,
+          tags: tags
+        }
       }
     } catch (err) {
       console.error("Error fetching repo metadata:", err)
@@ -472,6 +506,68 @@ export function RepoDataProvider({ repoPath, children, preloadedSDK }: RepoDataP
       setError(cloneError)
     }
   }, [cloneError])
+
+  // Charger les données initiales
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Si nous avons des données préchargées, les utiliser
+        if (preloadedSDK) {
+          // Enrichir les données du SDK avec les informations supplémentaires
+          const enrichedSDK = {
+            ...preloadedSDK,
+            size: await calculateRepoSize(),
+            structure: await getRepoStructure(),
+            readme: await fetchReadmeContent(),
+            last_updated: await getLastUpdateDate()
+          };
+          
+          setRepoMetadata({
+            ...repoMetadata,
+            sdk: enrichedSDK,
+            isLoading: false
+          });
+        }
+      } catch (error) {
+        console.error('Error loading repo data:', error);
+        setError('Failed to load repository data');
+      }
+    };
+
+    loadData();
+  }, [preloadedSDK, repoMetadata]);
+
+  // Fonctions utilitaires pour récupérer les informations supplémentaires
+  const calculateRepoSize = async () => {
+    // Calculer la taille totale du repo
+    // ... implementation ...
+    return "1.52 MB"; // Temporaire
+  };
+
+  const getRepoStructure = async () => {
+    // Générer une représentation de la structure du repo
+    // ... implementation ...
+    return `
+- src/
+  - multiversx_sdk/
+    - core/
+    - utils/
+- examples/
+- tests/
+- docs/`;
+  };
+
+  const fetchReadmeContent = async () => {
+    // Récupérer le contenu du README
+    // ... implementation ...
+    return "Loading README content...";
+  };
+
+  const getLastUpdateDate = async () => {
+    // Obtenir la date de dernière mise à jour
+    // ... implementation ...
+    return "13/02/2025";
+  };
 
   const value = {
     loading,

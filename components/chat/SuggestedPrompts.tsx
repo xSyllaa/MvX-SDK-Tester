@@ -1,58 +1,77 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { useChat } from "./chat-provider";
-import { SUGGESTED_PROMPTS, type SuggestedPrompt } from "@/data/suggested-prompts";
 import { usePathname } from "next/navigation";
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 
 export function SuggestedPrompts() {
-  const { handleSend } = useChat();
+  const { setInput, handleSend } = useChat();
   const pathname = usePathname();
+  const [prompts, setPrompts] = useState<string[]>([]);
 
-  // Déterminer la catégorie en fonction du chemin
-  const getCategory = (path: string): 'landing' | 'analyzer' | 'repo' => {
-    if (path.includes('/analyzer')) return 'analyzer';
-    if (path.includes('/repo')) return 'repo';
-    return 'landing';
-  };
-
-  const category = getCategory(pathname);
-
-  // Sélectionner les prompts à afficher
-  const selectedPrompts = useMemo(() => {
-    // Filtrer les prompts par catégorie
-    const categoryPrompts = SUGGESTED_PROMPTS.filter(prompt => prompt.category === category);
+  // Mettre à jour les prompts en fonction de la page
+  useEffect(() => {
+    let pagePrompts: string[];
     
-    // Sélectionner les prompts principaux
-    const mainPrompts = categoryPrompts.filter(prompt => prompt.isMain);
+    if (pathname.match(/^\/analyzer\/[^/]+$/)) {
+      pagePrompts = [
+        "Can you explain this SDK's structure?",
+        "How do I integrate this SDK?",
+        "What are the main features of this SDK?",
+        "Show me some code examples",
+        "What are the best practices for this SDK?",
+        "How do I handle errors with this SDK?"
+      ];
+    } else if (pathname === '/analyzer') {
+      pagePrompts = [
+        "What SDKs are available?",
+        "How do I choose the right SDK?",
+        "What's the difference between SDKs?",
+        "Show me the most popular SDKs",
+        "How do I get started with MultiversX SDKs?",
+        "What are the SDK categories?"
+      ];
+    } else {
+      pagePrompts = [
+        "What can this platform do?",
+        "How do I analyze an SDK?",
+        "Show me how to test endpoints",
+        "What features are available?",
+        "How do I get started?",
+        "Tell me about MultiversX SDKs"
+      ];
+    }
     
-    // Sélectionner un prompt aléatoire parmi les non-principaux
-    const otherPrompts = categoryPrompts.filter(prompt => !prompt.isMain);
-    const randomPrompt = otherPrompts[Math.floor(Math.random() * otherPrompts.length)];
-    
-    // Combiner les prompts principaux avec le prompt aléatoire
-    return [...mainPrompts, randomPrompt].slice(0, 3);
-  }, [category]);
+    setPrompts(prompts => {
+      // Ne mettre à jour que si les prompts sont différents
+      if (JSON.stringify(prompts) !== JSON.stringify(pagePrompts)) {
+        return pagePrompts;
+      }
+      return prompts;
+    });
+  }, [pathname]);
 
-  const handlePromptClick = async (prompt: SuggestedPrompt) => {
-    await handleSend(prompt.text);
+  // Sélectionner 3 prompts aléatoires
+  const selectedPrompts = prompts
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 3);
+
+  const handlePromptClick = (prompt: string) => {
+    setInput(prompt);
+    handleSend();
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 p-4">
+    <div className="flex flex-col gap-2 mt-4">
       {selectedPrompts.map((prompt, index) => (
         <Button
-          key={index}
+          key={`${pathname}-${prompt}-${index}`}
           variant="outline"
-          className={cn(
-            "h-auto py-2 px-3 text-sm text-left whitespace-normal",
-            "hover:bg-primary hover:text-primary-foreground transition-colors"
-          )}
+          className="text-sm"
           onClick={() => handlePromptClick(prompt)}
         >
-          {prompt.text}
+          {prompt}
         </Button>
       ))}
     </div>
