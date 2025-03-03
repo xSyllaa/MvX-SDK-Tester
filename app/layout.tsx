@@ -37,10 +37,8 @@ export default function RootLayout({
               <div className="flex flex-col min-h-screen">
                 <TopMenuBar />
                 <div className="flex-1 flex flex-col lg:flex-row relative">
-                  <div className="flex-1 flex justify-center transition-all duration-300">
-                    <div className="w-full px-4 lg:px-8 max-w-full lg:max-w-6xl mx-auto">
-                      {children}
-                    </div>
+                  <div className="flex-1 min-w-0 transition-all duration-300 lg:pr-[var(--chat-width,0px)]">
+                    {children}
                   </div>
                   <ChatInterface />
                 </div>

@@ -72,6 +72,17 @@ export function ChatInterface() {
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
   const lastContextRef = useRef(context);
 
+  // Set chat width CSS variable
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      '--chat-width',
+      isChatVisible ? `${chatWidth}px` : '0px'
+    );
+    return () => {
+      document.documentElement.style.removeProperty('--chat-width');
+    };
+  }, [isChatVisible, chatWidth]);
+
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollRef.current) {
