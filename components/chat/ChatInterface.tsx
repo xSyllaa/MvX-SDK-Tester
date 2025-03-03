@@ -31,6 +31,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { SuggestedPrompts } from "./SuggestedPrompts";
 
 interface ChatContentProps {
   messages: Message[];
@@ -55,6 +56,7 @@ export function ChatInterface() {
     setInput, 
     handleInputChange, 
     handleSubmit, 
+    handleSend,
     isLoading,
     setIsLoading,
     error,
@@ -63,6 +65,7 @@ export function ChatInterface() {
     isChatVisible,
     chatWidth,
     hideChat,
+    showChat,
     startResizing
   } = useChat();
   const [isOpen, setIsOpen] = useState(true);
@@ -106,90 +109,6 @@ export function ChatInterface() {
     }
   }, [context]);
 
-  const handleSend = async () => {
-    const trimmedInput = input.trim();
-    if (!trimmedInput || isLoading) return;
-
-    try {
-      setError(null);
-      setIsLoading(true);
-      
-      // Créer le message utilisateur
-      const userMessage = { 
-        role: 'user' as const, 
-        content: trimmedInput 
-      };
-      
-      // Préparer les messages pour l'API avec le contexte si nécessaire
-      let messagesToSend = [...messages];
-      
-      // Ajouter le contexte au début s'il n'a pas déjà été ajouté
-      if (context && !hasAddedContextRef.current) {
-        messagesToSend = [
-          { role: 'system' as const, content: context },
-          ...messagesToSend
-        ];
-        hasAddedContextRef.current = true;
-      }
-      
-      // Ajouter le message utilisateur
-      messagesToSend.push(userMessage);
-
-      // Mettre à jour l'UI avec le message utilisateur et vider l'input
-      setInput('');
-      setMessages(prev => [...prev, userMessage]);
-
-      // Ajouter un message vide pour l'assistant
-      const assistantMessage = { role: 'assistant' as const, content: '' };
-      setMessages(prev => [...prev, assistantMessage]);
-
-      // Obtenir la réponse de l'IA avec streaming
-      const { newMessage } = await continueConversation(messagesToSend);
-      
-      let textContent = '';
-      let lastUpdate = Date.now();
-
-      for await (const delta of readStreamableValue(newMessage)) {
-        textContent = `${textContent}${delta}`;
-        
-        // Mettre à jour plus fréquemment pour une meilleure fluidité
-        const now = Date.now();
-        if (now - lastUpdate > 50) {  // Réduit à 50ms au lieu de 100ms
-          setMessages(prev => {
-            const newMessages = [...prev];
-            newMessages[newMessages.length - 1] = {
-              role: 'assistant',
-              content: textContent
-            };
-            return newMessages;
-          });
-          lastUpdate = now;
-        }
-      }
-
-      // Mise à jour finale
-      setMessages(prev => {
-        const newMessages = [...prev];
-        newMessages[newMessages.length - 1] = {
-          role: 'assistant',
-          content: textContent
-        };
-        return newMessages;
-      });
-    } catch (err: any) {
-      console.error('Error:', err);
-      setError(err.message || "An error occurred");
-      
-      const errorMessage = {
-        role: 'assistant' as const,
-        content: `⚠️ ${err.message || "Sorry, an error occurred. Please try again."}`
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const contextDisplay = (
     <div className="px-4 py-2 border-b">
       <TooltipProvider delayDuration={0}>
@@ -225,7 +144,10 @@ export function ChatInterface() {
     )}>
       {!isMobileExpanded ? (
         <Button
-          onClick={() => setIsMobileExpanded(true)}
+          onClick={() => {
+            setIsMobileExpanded(true);
+            showChat();
+          }}
           className="w-[60px] h-[60px] rounded-full shadow-lg hover:shadow-xl transition-shadow"
           size="icon"
         >
@@ -351,6 +273,7 @@ function ChatContent({ messages, error, isLoading, scrollRef }: ChatContentProps
           <div className="text-center text-muted-foreground text-sm py-8">
             <Bot className="h-16 w-16 mx-auto mb-3 dark:text-black text-white dark:bg-white bg-black rounded-full p-3" />
             <p>How can I help you with the SDK?</p>
+            <SuggestedPrompts />
           </div>
         )}
         
