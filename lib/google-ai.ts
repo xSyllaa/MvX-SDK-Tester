@@ -1,43 +1,57 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-// Initialiser l'API Google AI
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || '');
-
 // Type pour les messages
 export type Message = {
   role: 'user' | 'assistant';
   content: string;
 };
 
+// Type pour les erreurs de l'API
+export type APIError = {
+  error: string;
+  details?: string;
+};
+
 // Classe pour gérer les conversations
 export class AIConversationManager {
-  private model;
-  private chat;
-
-  constructor() {
-    this.model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-    this.chat = this.model.startChat({
-      history: [],
-      generationConfig: {
-        maxOutputTokens: 2048,
-        temperature: 0.7,
-      },
-    });
-  }
+  private readonly timeout = 30000; // 30 secondes
 
   async sendMessage(message: string, context?: string): Promise<string> {
     try {
-      // Si un contexte est fourni, l'ajouter au message
-      const fullMessage = context 
-        ? `[Contexte: ${context}]\n\nMessage: ${message}`
-        : message;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-      const result = await this.chat.sendMessage(fullMessage);
-      const response = await result.response;
-      return response.text();
-    } catch (error) {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message, context }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData: APIError = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Erreur inconnue');
+      }
+
+      const data = await response.json();
+      
+      if (!data.response) {
+        throw new Error('Réponse invalide du serveur');
+      }
+
+      return data.response;
+    } catch (error: any) {
       console.error('Erreur lors de l\'envoi du message:', error);
-      throw new Error('Erreur lors de la communication avec l\'IA');
+
+      if (error.name === 'AbortError') {
+        throw new Error('La requête a pris trop de temps à répondre');
+      }
+
+      throw new Error(
+        error.message || 'Erreur lors de la communication avec l\'IA'
+      );
     }
   }
 }

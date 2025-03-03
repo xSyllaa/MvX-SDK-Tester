@@ -1,20 +1,22 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Message, aiManager } from '@/lib/google-ai';
+import { Message, continueConversation } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
-import { Bot, Send, User, Loader2, ChevronDown, XCircle } from 'lucide-react';
+import { Bot, Send, User, Loader2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { readStreamableValue } from 'ai/rsc';
 
 export function ChatInterface({ context }: { context?: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -25,28 +27,47 @@ export function ChatInterface({ context }: { context?: string }) {
     }
   }, [messages]);
 
+  // Effacer l'erreur après 5 secondes
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    const trimmedInput = input.trim();
+    if (!trimmedInput || isLoading) return;
 
     try {
+      setError(null);
       setIsLoading(true);
+      
       // Ajouter le message de l'utilisateur
-      const userMessage: Message = { role: 'user', content: input };
-      setMessages(prev => [...prev, userMessage]);
+      const userMessage: Message = { role: 'user', content: trimmedInput };
+      const updatedMessages = [...messages, userMessage];
+      setMessages(updatedMessages);
       setInput('');
 
-      // Obtenir la réponse de l'IA
-      const response = await aiManager.sendMessage(input, context);
+      // Obtenir la réponse de l'IA avec streaming
+      const { messages: historyMessages, newMessage } = await continueConversation(updatedMessages);
       
-      // Ajouter la réponse de l'assistant
-      const assistantMessage: Message = { role: 'assistant', content: response };
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
+      let textContent = '';
+      for await (const delta of readStreamableValue(newMessage)) {
+        textContent = `${textContent}${delta}`;
+        setMessages([
+          ...historyMessages,
+          { role: 'assistant', content: textContent }
+        ]);
+      }
+    } catch (error: any) {
       console.error('Erreur:', error);
-      // Ajouter un message d'erreur
+      setError(error.message || "Une erreur s'est produite");
+      
+      // Ajouter un message d'erreur dans le chat
       const errorMessage: Message = {
         role: 'assistant',
-        content: "Désolé, une erreur s'est produite. Veuillez réessayer."
+        content: `⚠️ ${error.message || "Désolé, une erreur s'est produite. Veuillez réessayer."}`
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
@@ -108,12 +129,19 @@ export function ChatInterface({ context }: { context?: string }) {
           {/* Zone de messages */}
           <ScrollArea className="flex-1 p-4" ref={scrollRef}>
             <div className="space-y-4">
+              {error && (
+                <div className="bg-destructive/10 text-destructive text-sm p-2 rounded">
+                  {error}
+                </div>
+              )}
+              
               {messages.length === 0 && (
                 <div className="text-center text-muted-foreground text-sm py-8">
                   <Bot className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
                   <p>Comment puis-je vous aider avec le SDK ?</p>
                 </div>
               )}
+              
               {messages.map((message, i) => (
                 <div
                   key={i}
@@ -147,6 +175,7 @@ export function ChatInterface({ context }: { context?: string }) {
                   </div>
                 </div>
               ))}
+              
               {isLoading && (
                 <div className="flex items-center space-x-2.5">
                   <Avatar className="h-8 w-8">
@@ -175,17 +204,27 @@ export function ChatInterface({ context }: { context?: string }) {
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Posez une question sur le SDK..."
+                placeholder={isLoading ? "Envoi en cours..." : "Posez une question sur le SDK..."}
                 disabled={isLoading}
-                className="flex-1"
+                className={cn(
+                  "flex-1",
+                  isLoading && "opacity-50"
+                )}
               />
               <Button 
                 type="submit" 
-                disabled={isLoading} 
+                disabled={isLoading || !input.trim()} 
                 size="icon"
-                className="shrink-0"
+                className={cn(
+                  "shrink-0",
+                  isLoading && "opacity-50"
+                )}
               >
-                <Send className="h-5 w-5" />
+                {isLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
               </Button>
             </form>
           </div>
@@ -193,4 +232,4 @@ export function ChatInterface({ context }: { context?: string }) {
       )}
     </div>
   );
-} 
+}

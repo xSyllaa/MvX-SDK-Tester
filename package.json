@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ai-sdk/google": "^1.1.17",
     "@codemirror/lang-javascript": "latest",
     "@codemirror/lang-json": "latest",
     "@codemirror/lang-markdown": "latest",
@@ -46,6 +47,7 @@
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@xoxno/sdk-js": "^0.1.300",
+    "ai": "^4.1.50",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
