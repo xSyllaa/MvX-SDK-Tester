@@ -2,7 +2,7 @@
 
 import { Loader2 } from "lucide-react"
 import { useRepoData } from "@/components/repo/RepoDataProvider"
-import { tagCategoryColors, TagCategory, Tag, SDK, sdkList } from '@/data/sdkData'
+import { tagCategoryColors, TagCategory, tagCategoryDescriptions, type SDK, sdkList } from '@/data/sdkData'
 import { useState, useEffect } from 'react'
 
 // Fonction pour obtenir la description de la catégorie
@@ -238,7 +238,6 @@ export function RepoStats() {
             {tags.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {tags.map((tag, index) => {
-                  // S'assurer que la catégorie est une valeur valide de TagCategory
                   const category = tag.category as TagCategory;
                   return (
                     <span 
@@ -249,7 +248,7 @@ export function RepoStats() {
                         color: tagCategoryColors[category],
                         border: `1px solid ${tagCategoryColors[category]}`
                       }}
-                      data-tooltip={`${category} - ${getCategoryDescription(category)}`}
+                      data-tooltip={`${category} - ${tagCategoryDescriptions[category]}`}
                     >
                       {tag.name}
                     </span>

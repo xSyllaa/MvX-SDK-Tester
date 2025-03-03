@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation"
 import { ExternalLink, Github } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { tagCategoryColors, type SDK, type TagCategory } from "@/data/sdkData"
+import { tagCategoryColors, TagCategory, tagCategoryDescriptions, type SDK } from "@/data/sdkData"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface SDKCardProps {
   sdk: SDK
@@ -61,22 +67,30 @@ export function SDKCard({ sdk, onAnalyze }: SDKCardProps) {
       <p className="text-muted-foreground text-xs lg:text-sm mb-4">{sdk.description}</p>
 
       <div className="flex flex-wrap gap-1.5 mb-4">
-        {sdk.tags.map((tag) => {
-          const bgColor = tagCategoryColors[tag.category] || "#e5e7eb"
-          return (
-            <Badge
-              key={tag.name}
-              variant="outline"
-              className="font-mono text-[9px] leading-none lg:text-[10px] py-1 px-2 whitespace-normal break-words min-h-[20px]"
-              style={{
-                backgroundColor: `${bgColor}40`, // 40 is for 25% opacity
-                borderColor: bgColor,
-              }}
-            >
-              {tag.name}
-            </Badge>
-          )
-        })}
+        <TooltipProvider delayDuration={0}>
+          {sdk.tags.map((tag) => {
+            const bgColor = tagCategoryColors[tag.category] || "#e5e7eb"
+            return (
+              <Tooltip key={tag.name}>
+                <TooltipTrigger>
+                  <Badge
+                    variant="outline"
+                    className="font-mono text-[9px] leading-none lg:text-[10px] py-1 px-2 whitespace-normal break-words min-h-[20px] cursor-help"
+                    style={{
+                      backgroundColor: `${bgColor}40`,
+                      borderColor: bgColor,
+                    }}
+                  >
+                    {tag.name}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="center">
+                  <p>{tag.category} - {tagCategoryDescriptions[tag.category]}</p>
+                </TooltipContent>
+              </Tooltip>
+            )
+          })}
+        </TooltipProvider>
       </div>
 
       <div className="flex items-center gap-2 w-full mt-auto sm:flex-wrap">

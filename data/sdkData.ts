@@ -20,16 +20,62 @@ export enum TagCategory {
   OWNER = "Owner",
 }
 
-// You can define colors for each category for styling purposes
-export const tagCategoryColors: { [key in TagCategory]: string } = {
-  [TagCategory.LANGUAGE]: "#29ABE2", // Light Blue
-  [TagCategory.PURPOSE]: "#8E44AD", // Purple
-  [TagCategory.FRAMEWORK]: "#27AE60", // Green
-  [TagCategory.PLATFORM]: "#F39C12", // Orange
-  [TagCategory.TECHNOLOGY]: "#D35400", // Dark Orange
-  [TagCategory.OTHER]: "#7F8C8D", // Grey
-  [TagCategory.OWNER]: "#34495E"        // Gris foncé pour Owner
+// Descriptions for each tag category
+export const tagCategoryDescriptions: { [key in TagCategory]: string } = {
+  [TagCategory.LANGUAGE]: "Programming language used",
+  [TagCategory.PURPOSE]: "Main objective or use case",
+  [TagCategory.FRAMEWORK]: "Framework or library used",
+  [TagCategory.PLATFORM]: "Compatible platform or environment",
+  [TagCategory.TECHNOLOGY]: "Integrated technology or tool",
+  [TagCategory.OTHER]: "Other relevant information",
+  [TagCategory.OWNER]: "Owner of the SDK or repository",
 };
+
+export interface TagCategoryStyle {
+  base: string;      // Couleur de base
+  light: string;     // Version claire pour les backgrounds
+  dark: string;      // Version foncée pour le hover
+}
+
+// Modification de la définition des couleurs
+export const tagCategoryColors: { [key in TagCategory]: TagCategoryStyle } = {
+  [TagCategory.LANGUAGE]: {
+    base: "#29ABE2",
+    light: "#29ABE220",
+    dark: "#1A8AB3"
+  },
+  [TagCategory.PURPOSE]: {
+    base: "#8E44AD",
+    light: "#8E44AD20",
+    dark: "#6C3382"
+  },
+  [TagCategory.FRAMEWORK]: {
+    base: "#27AE60",
+    light: "#27AE6020",
+    dark: "#1E8449"
+  },
+  [TagCategory.PLATFORM]: {
+    base: "#F39C12",
+    light: "#F39C1220",
+    dark: "#B37A0E"
+  },
+  [TagCategory.TECHNOLOGY]: {
+    base: "#D35400",
+    light: "#D3540020",
+    dark: "#A04000"
+  },
+  [TagCategory.OTHER]: {
+    base: "#7F8C8D",
+    light: "#7F8C8D20",
+    dark: "#626C6D"
+  },
+  [TagCategory.OWNER]: {
+    base: "#34495E",
+    light: "#34495E20",
+    dark: "#283848"
+  }
+};
+
 export const sdkList: SDK[] = [
   {
     name: "MultiversX Playground",
