@@ -307,7 +307,7 @@ const generateSuggestedParams = (endpoint: Endpoint): RequestParam[] => {
         required: true,
         isPathVariable: true,
         type: paramType,
-        description: jsdocParamDescription || `Variable de chemin pour ${varName}`
+        description: jsdocParamDescription || `Variable de chemin for ${varName}`
       });
     }
   }
@@ -615,7 +615,7 @@ function LanguageInfo({ language, filePath }: { language: string; filePath: stri
       <div className="flex items-center gap-2">
         <FileJson className="h-4 w-4" />
         <AlertDescription>
-          <span className="font-medium">Type de fichier:</span> {language} 
+          <span className="font-medium">File type:</span> {language} 
           {filePath && <span className="text-muted-foreground ml-2">({filePath})</span>}
         </AlertDescription>
       </div>

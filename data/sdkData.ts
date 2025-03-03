@@ -135,7 +135,7 @@ export const sdkList: SDK[] = [
   {
     name: "Liquid Staking Smart Contract",
     description: "A smart contract that allows users to stake EGLD in return for lsEGLD, a fungible ESDT that can be used in multiple ways in the MultiversX ecosystem, all while retaining the standard staking rewards.",
-    github_link: "https://github.com/multiversx/mx-sc-snippets",
+    github_link: "https://github.com/multiversx/mx-liquid-staking-sc",
     tags: [
       { name: "Rust", category: TagCategory.LANGUAGE },
       { name: "Smart Contract", category: TagCategory.TECHNOLOGY },

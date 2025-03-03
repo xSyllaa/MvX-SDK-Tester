@@ -51,17 +51,17 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ response: text });
     } catch (error: any) {
-      console.error('Erreur spécifique à l\'API Google AI:', error);
+      console.error('Specific error with Google AI API:', error);
       
-      // Gestion des erreurs spécifiques
+      // Specific error handling
       if (error.status === 404) {
         return NextResponse.json(
-          { error: 'Le modèle d\'IA n\'est pas disponible actuellement' },
+          { error: 'The AI model is currently unavailable' },
           { status: 503 }
         );
       }
       
-      throw error; // Relancer l'erreur pour la gestion générale
+      throw error; // Rethrow error for general handling
     }
   } catch (error: any) {
     console.error('Erreur lors de l\'envoi du message:', error);

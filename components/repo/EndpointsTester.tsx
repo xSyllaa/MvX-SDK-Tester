@@ -436,31 +436,31 @@ function useApiRequest() {
       // Récupérer les données de la réponse
       let responseText = ""
       const contentType = response.headers.get('content-type');
-      console.log(`Type de contenu: ${contentType || 'non spécifié'}`);
+      console.log(`Content type: ${contentType || 'not specified'}`);
       
       if (contentType && contentType.includes('application/json')) {
         try {
           const responseJson = await response.json()
           responseText = JSON.stringify(responseJson, null, 2)
-          console.log('Contenu JSON reçu:', responseJson);
+          console.log('JSON content received:', responseJson);
         } catch (e) {
           responseText = await response.text()
-          console.warn('Erreur lors du parsing JSON, contenu texte récupéré');
+          console.warn('Error parsing JSON, text content retrieved');
         }
       } else {
         responseText = await response.text()
-        console.log(`Contenu texte reçu (${responseText.length} caractères)`);
+        console.log(`Text content received (${responseText.length} characters)`);
       }
       
-      // Ne pas afficher le HTML en cas d'erreur
+      // Don't display HTML in case of error
       if (responseText.startsWith('<!DOCTYPE html>') || responseText.startsWith('<html>')) {
-        console.warn('Réponse HTML détectée, ne sera pas affichée');
-        setResponseData("La réponse est au format HTML et ne sera pas affichée")
+        console.warn('HTML response detected, will not be displayed');
+        setResponseData("The response is in HTML format and will not be displayed")
       } else {
         setResponseData(responseText)
       }
       
-      console.log(`Requête ${response.ok ? 'réussie ✅' : 'échouée ❌'}`);
+      console.log(`Request ${response.ok ? 'successful ✅' : 'failed ❌'}`);
       console.groupEnd();
     } catch (error) {
       console.group(`❌ Erreur lors de la requête API - ${new Date().toISOString()}`);

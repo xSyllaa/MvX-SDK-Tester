@@ -44,30 +44,30 @@ export function SDKCard({ sdk, onAnalyze }: SDKCardProps) {
   }
 
   return (
-    <div className="border rounded-lg p-6 space-y-4 hover:border-primary/20 transition-colors">
-      <div className="flex justify-between items-start">
-        <h3 className="text-xl font-bold">{sdk.name}</h3>
+    <div className="border rounded-lg p-4 lg:p-6 hover:border-primary/20 transition-colors h-full flex flex-col">
+      <div className="flex justify-between items-start gap-4 mb-3 lg:mb-4">
+        <h3 className="text-base lg:text-lg font-bold">{sdk.name}</h3>
         <Link
           href={sdk.github_link}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground shrink-0"
         >
-          <Github className="h-5 w-5" />
+          <Github className="h-4 w-4 lg:h-5 lg:w-5" />
           <span className="sr-only">GitHub Repository</span>
         </Link>
       </div>
 
-      <p className="text-muted-foreground text-sm">{sdk.description}</p>
+      <p className="text-muted-foreground text-xs lg:text-sm mb-4">{sdk.description}</p>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5 mb-4">
         {sdk.tags.map((tag) => {
           const bgColor = tagCategoryColors[tag.category] || "#e5e7eb"
           return (
             <Badge
               key={tag.name}
               variant="outline"
-              className="font-mono text-xs text-foreground"
+              className="font-mono text-[9px] leading-none lg:text-[10px] py-1 px-2 whitespace-normal break-words min-h-[20px]"
               style={{
                 backgroundColor: `${bgColor}40`, // 40 is for 25% opacity
                 borderColor: bgColor,
@@ -79,14 +79,28 @@ export function SDKCard({ sdk, onAnalyze }: SDKCardProps) {
         })}
       </div>
 
-      <div className="flex gap-2 pt-2">
-        <Button variant="default" size="sm" className="font-mono text-xs" onClick={handleAnalyze}>
+      <div className="flex items-center gap-2 w-full mt-auto sm:flex-wrap">
+        <Button 
+          variant="default" 
+          size="sm" 
+          className="flex-1 text-[10px] lg:text-xs py-1.5 h-auto min-h-[28px] font-mono whitespace-nowrap"
+          onClick={handleAnalyze}
+        >
           Analyze SDK
         </Button>
-        <Link href={sdk.github_link} target="_blank" rel="noopener noreferrer">
-          <Button variant="outline" size="sm" className="font-mono text-xs">
+        <Link 
+          href={sdk.github_link} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="flex-1"
+        >
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full text-[10px] lg:text-xs py-1.5 h-auto min-h-[28px] font-mono inline-flex items-center justify-center whitespace-nowrap"
+          >
             View on GitHub
-            <ExternalLink className="ml-1 h-3 w-3" />
+            <ExternalLink className="ml-1.5 h-3 w-3 shrink-0" />
           </Button>
         </Link>
       </div>

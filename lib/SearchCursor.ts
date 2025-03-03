@@ -1,6 +1,6 @@
 /**
- * Classe utilitaire pour rechercher des occurrences dans un document.
- * Implémentation simplifiée pour la recherche de texte.
+ * Utility class for searching occurrences in a document.
+ * Simplified implementation for text search.
  */
 export default class SearchCursor {
   doc: any;
@@ -11,11 +11,11 @@ export default class SearchCursor {
   value: { from: number, to: number };
 
   /**
-   * Crée un curseur de recherche
-   * @param doc Le document dans lequel rechercher
-   * @param query La requête de recherche (texte ou expression régulière)
-   * @param from Position de départ (par défaut: 0)
-   * @param to Position de fin (par défaut: longueur du document)
+   * Creates a search cursor
+   * @param doc The document to search in
+   * @param query The search query (text or regular expression)
+   * @param from Starting position (default: 0)
+   * @param to End position (default: document length)
    */
   constructor(doc: any, query: any, from?: number, to?: number) {
     this.doc = doc;
@@ -28,8 +28,8 @@ export default class SearchCursor {
   }
 
   /**
-   * Trouve la prochaine occurrence
-   * @returns L'occurrence trouvée ou undefined si rien n'est trouvé
+   * Finds the next occurrence
+   * @returns The found occurrence or undefined if nothing is found
    */
   findNext() {
     if (this.pos >= this.end) {
@@ -61,8 +61,8 @@ export default class SearchCursor {
   }
 
   /**
-   * Alias pour findNext
-   * @returns L'occurrence trouvée ou undefined si rien n'est trouvé
+   * Alias for findNext
+   * @returns The found occurrence or undefined if nothing is found
    */
   next() {
     return this.findNext();

@@ -78,13 +78,13 @@ export function ChatInterface({ context }: { context?: string }) {
         ]);
       }
     } catch (error: any) {
-      console.error('Erreur:', error);
-      setError(error.message || "Une erreur s'est produite");
+      console.error('Error:', error);
+      setError(error.message || "An error occurred");
       
-      // Ajouter un message d'erreur dans le chat
+      // Add error message to chat
       const errorMessage: Message = {
         role: 'assistant',
-        content: `⚠️ ${error.message || "Désolé, une erreur s'est produite. Veuillez réessayer."}`
+        content: `⚠️ ${error.message || "Sorry, an error occurred. Please try again."}`
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
