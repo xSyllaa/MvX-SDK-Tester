@@ -32,6 +32,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SuggestedPrompts } from "./SuggestedPrompts";
+import { getLandingContext, getAnalyzerContext, getRepoContext, generateFullContext } from "@/data/chat-contexts";
+import { usePathname } from "next/navigation";
 
 interface ChatContentProps {
   messages: Message[];
@@ -62,18 +64,38 @@ export function ChatInterface() {
     error,
     setError,
     context,
+    setContext,
     isChatVisible,
     chatWidth,
     hideChat,
     showChat,
     startResizing
   } = useChat();
-  const [isOpen, setIsOpen] = useState(true);
+  const pathname = usePathname();
   const hasAddedContextRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
-  const lastContextRef = useRef(context);
+
+  // Mettre à jour le contexte en fonction de la page
+  useEffect(() => {
+    let newContext = '';
+    
+    if (pathname.includes('/analyzer')) {
+      newContext = generateFullContext(getAnalyzerContext());
+    } else if (pathname.includes('/repo')) {
+      // Le contexte du repo sera mis à jour par le composant parent
+      // qui a accès aux données du SDK
+      return;
+    } else {
+      newContext = generateFullContext(getLandingContext());
+    }
+    
+    if (newContext !== context) {
+      setContext(newContext);
+      hasAddedContextRef.current = false;
+    }
+  }, [pathname, context, setContext]);
 
   // Set chat width CSS variable
   useEffect(() => {
@@ -100,14 +122,6 @@ export function ChatInterface() {
       return () => clearTimeout(timer);
     }
   }, [error, setError]);
-
-  // Reset hasAddedContext when context changes
-  useEffect(() => {
-    if (context !== lastContextRef.current) {
-      hasAddedContextRef.current = false;
-      lastContextRef.current = context;
-    }
-  }, [context]);
 
   const contextDisplay = (
     <div className="px-4 py-2 border-b">

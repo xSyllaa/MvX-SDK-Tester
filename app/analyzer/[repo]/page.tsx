@@ -14,6 +14,7 @@ import { useEffect, useState } from "react"
 import { SDK } from "@/data/sdkData"
 import { generateSDKContext } from "@/lib/chat-context"
 import { useChat } from '@/components/chat/chat-provider'
+import { getRepoContext, generateFullContext } from "@/data/chat-contexts"
 import { tagCategoryColors, TagCategory, tagCategoryDescriptions } from "@/data/sdkData"
 import {
   Tooltip,
@@ -62,19 +63,15 @@ export default function AnalyzerPage() {
         const sdk = JSON.parse(sdkData)
         setPreloadedSDK(sdk)
         // Générer le contexte du SDK
-        const context = generateSDKContext(sdk)
+        const context = generateFullContext(getRepoContext(sdk))
         setContext(context)
         // Effacer les données après utilisation
         localStorage.removeItem('currentSDK')
-      } else {
-        // Si pas de SDK, utiliser le chemin du dépôt comme contexte
-        setContext(`Current repository: ${repoPath}`)
       }
     } catch (error) {
       console.error("Error loading SDK data from localStorage:", error)
-      setContext(`Current repository: ${repoPath}`)
     }
-  }, [repoPath, setContext])
+  }, [setContext])
   
   return (
     <main className="container mx-auto py-6 max-w-7xl">
