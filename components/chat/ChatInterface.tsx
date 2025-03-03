@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, type RefObject, type Dispatch, type SetStateAction } from 'react';
+import { useState, useRef, useEffect, type RefObject, type Dispatch, type SetStateAction, useMemo, useCallback, memo } from 'react';
 import { Message, continueConversation } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -88,20 +88,19 @@ export function ChatInterface() {
     };
   }, [isChatVisible, chatWidth]);
 
-  // Ajout de l'effet pour gérer le redimensionnement
+  // Gestion du redimensionnement avec useCallback
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    const newWidth = window.innerWidth - e.clientX;
+    setChatWidth(Math.max(300, Math.min(800, newWidth)));
+  }, [setChatWidth]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, [setIsResizing]);
+
+  // Effet de redimensionnement optimisé
   useEffect(() => {
     if (!isResizing) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      // Calculer la nouvelle largeur en fonction de la position de la souris
-      const newWidth = window.innerWidth - e.clientX;
-      // Limiter entre 300px et 800px
-      setChatWidth(Math.max(300, Math.min(800, newWidth)));
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
 
     document.body.style.cursor = 'ew-resize';
     document.addEventListener('mousemove', handleMouseMove);
@@ -112,7 +111,7 @@ export function ChatInterface() {
       document.removeEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = '';
     };
-  }, [isResizing, setChatWidth, setIsResizing]);
+  }, [isResizing, handleMouseMove, handleMouseUp]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -129,7 +128,8 @@ export function ChatInterface() {
     }
   }, [error, setError]);
 
-  const contextDisplay = (
+  // Composants mémorisés
+  const contextDisplay = useMemo(() => (
     <div className="px-4 py-2 border-b">
       <TooltipProvider delayDuration={0}>
         <Tooltip>
@@ -154,10 +154,50 @@ export function ChatInterface() {
         </Tooltip>
       </TooltipProvider>
     </div>
-  );
+  ), [context]);
 
-  // Mobile floating interface
-  const mobileInterface = (
+  const chatHeader = useMemo(() => (
+    <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center space-x-3">
+        <Avatar className="h-8 w-8">
+          <div className="rounded-full dark:bg-white bg-black">
+            <Bot className="h-5 w-5 m-1.5 dark:text-black text-white" />
+          </div>
+        </Avatar>
+        <div>
+          <h3 className="font-semibold">Assistant SDK</h3>
+          <p className="text-xs text-muted-foreground">Powered by Google AI</p>
+        </div>
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={hideChat}
+        className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground rounded-full transition-colors"
+      >
+        <X className="h-5 w-5" />
+      </Button>
+    </div>
+  ), [hideChat]);
+
+  const resizeHandle = useMemo(() => (
+    <div 
+      className="absolute left-[-6px] top-0 bottom-0 w-3 cursor-ew-resize hover:bg-primary/20 group z-[50]"
+      onMouseDown={(e) => {
+        setIsResizing(true);
+        e.preventDefault();
+      }}
+    >
+      <div className={cn(
+        "absolute left-[5px] top-0 bottom-0 w-[2px] transition-colors",
+        "bg-border group-hover:bg-primary/50",
+        isResizing ? "bg-primary" : "group-active:bg-primary"
+      )} />
+    </div>
+  ), [isResizing, setIsResizing]);
+
+  // Mobile interface mémorisé
+  const mobileInterface = useMemo(() => (
     <div className={cn(
       "lg:hidden fixed bottom-4 right-4 z-50 transition-all duration-300 ease-in-out",
       isMobileExpanded ? "w-[calc(100%-2rem)] h-[80vh]" : "w-[60px]"
@@ -175,27 +215,7 @@ export function ChatInterface() {
         </Button>
       ) : (
         <Card className="flex flex-col h-full shadow-lg">
-          <div className="flex items-center justify-between p-4 border-b">
-            <div className="flex items-center space-x-3">
-              <Avatar className="h-8 w-8">
-                <div className="rounded-full dark:bg-white bg-black">
-                  <Bot className="h-5 w-5 m-1.5 dark:text-black text-white" />
-                </div>
-              </Avatar>
-              <div>
-                <h3 className="font-semibold">Assistant SDK</h3>
-                <p className="text-xs text-muted-foreground">Powered by Google AI</p>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setIsMobileExpanded(false)}
-            >
-              <Minimize2 className="h-5 w-5" />
-            </Button>
-          </div>
+          {chatHeader}
           <ChatContent
             messages={messages}
             error={error}
@@ -212,71 +232,41 @@ export function ChatInterface() {
         </Card>
       )}
     </div>
-  );
+  ), [isMobileExpanded, showChat, chatHeader, messages, error, isLoading, input, handleSend]);
 
-  // Desktop integrated interface
-  const desktopInterface = isChatVisible && (
-    <div className={cn(
-      "hidden lg:flex flex-col border bg-background shadow-lg",
-      "fixed top-[4rem] right-0 bottom-0",
-      "transition-transform duration-300 z-50",
-      !isChatVisible && "translate-x-full",
-      isResizing && "select-none"
-    )}
-    style={{ width: `${chatWidth}px` }}
-    >
-      <div 
-        className="absolute left-[-6px] top-0 bottom-0 w-3 cursor-ew-resize hover:bg-primary/20 group z-[50]"
-        onMouseDown={(e) => {
-          setIsResizing(true);
-          e.preventDefault();
-        }}
+  // Desktop interface mémorisé
+  const desktopInterface = useMemo(() => (
+    isChatVisible && (
+      <div className={cn(
+        "hidden lg:flex flex-col border bg-background shadow-lg",
+        "fixed top-[4rem] right-0 bottom-0",
+        "transition-transform duration-300 z-50",
+        !isChatVisible && "translate-x-full",
+        isResizing && "select-none"
+      )}
+      style={{ width: `${chatWidth}px` }}
       >
-        <div className={cn(
-          "absolute left-[5px] top-0 bottom-0 w-[2px] transition-colors",
-          "bg-border group-hover:bg-primary/50",
-          isResizing ? "bg-primary" : "group-active:bg-primary"
-        )} />
-      </div>
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center space-x-3">
-          <Avatar className="h-8 w-8">
-            <div className="rounded-full dark:bg-white bg-black">
-              <Bot className="h-5 w-5 m-1.5 dark:text-black text-white" />
-            </div>
-          </Avatar>
-          <div>
-            <h3 className="font-semibold">Assistant SDK</h3>
-            <p className="text-xs text-muted-foreground">Powered by Google AI</p>
-          </div>
+        {resizeHandle}
+        {chatHeader}
+        {contextDisplay}
+        <div className="flex-1 overflow-hidden border-t">
+          <ChatContent
+            messages={messages}
+            error={error}
+            isLoading={isLoading}
+            scrollRef={scrollRef}
+          />
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={hideChat}
-          className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground rounded-full transition-colors"
-        >
-          <X className="h-5 w-5" />
-        </Button>
-      </div>
-      {contextDisplay}
-      <div className="flex-1 overflow-hidden border-t">
-        <ChatContent
-          messages={messages}
-          error={error}
+        <ChatInput
+          input={input}
+          setInput={setInput}
+          handleSend={handleSend}
           isLoading={isLoading}
-          scrollRef={scrollRef}
+          inputRef={inputRef}
         />
       </div>
-      <ChatInput
-        input={input}
-        setInput={setInput}
-        handleSend={handleSend}
-        isLoading={isLoading}
-        inputRef={inputRef}
-      />
-    </div>
-  );
+    )
+  ), [isChatVisible, chatWidth, isResizing, resizeHandle, chatHeader, contextDisplay, messages, error, isLoading, input, handleSend]);
 
   return (
     <>
@@ -286,8 +276,19 @@ export function ChatInterface() {
   );
 }
 
-// Chat content component
-function ChatContent({ messages, error, isLoading, scrollRef }: ChatContentProps) {
+// Composant mémorisé pour la section des prompts suggérés
+const EmptyChatContent = memo(function EmptyChatContent() {
+  return (
+    <div className="text-center text-muted-foreground text-sm py-8">
+      <Bot className="h-16 w-16 mx-auto mb-3 dark:text-black text-white dark:bg-white bg-black rounded-full p-3" />
+      <p>How can I help you with the SDK?</p>
+      <SuggestedPrompts />
+    </div>
+  );
+});
+
+// Composants ChatContent et ChatInput séparés et mémorisés
+const ChatContent = memo(function ChatContent({ messages, error, isLoading, scrollRef }: ChatContentProps) {
   return (
     <ScrollArea className="h-full">
       <div className="p-4 space-y-4">
@@ -297,75 +298,70 @@ function ChatContent({ messages, error, isLoading, scrollRef }: ChatContentProps
           </div>
         )}
         
-        {messages.length === 0 && (
-          <div className="text-center text-muted-foreground text-sm py-8">
-            <Bot className="h-16 w-16 mx-auto mb-3 dark:text-black text-white dark:bg-white bg-black rounded-full p-3" />
-            <p>How can I help you with the SDK?</p>
-            <SuggestedPrompts />
-          </div>
-        )}
-        
-        {messages.map((message: Message, i: number) => (
-          <div
-            key={i}
-            className={cn(
-              "flex items-start space-x-2.5",
-              message.role === 'user' ? "flex-row-reverse space-x-reverse" : "flex-row"
-            )}
-          >
-            <Avatar className="h-8 w-8 mt-0.5">
-              <div className={cn(
-                "rounded-full dark:bg-white bg-black"
-              )}>
-                {message.role === 'user' 
-                  ? <User className="h-6 w-6 m-1 dark:text-black text-white" />
-                  : <Bot className="h-6 w-6 m-1 dark:text-black text-white" />
-                }
-              </div>
-            </Avatar>
+        {messages.length === 0 ? (
+          <EmptyChatContent />
+        ) : (
+          messages.map((message: Message, i: number) => (
             <div
+              key={i}
               className={cn(
-                "rounded-lg px-3 py-2 max-w-[85%]",
-                message.role === 'user' 
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted"
+                "flex items-start space-x-2.5",
+                message.role === 'user' ? "flex-row-reverse space-x-reverse" : "flex-row"
               )}
             >
-              {message.role === 'user' ? (
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-              ) : (
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <ReactMarkdown
-                    components={{
-                      pre: ({ children }) => <div className="border border-border rounded-md overflow-hidden my-2">{children}</div>,
-                      code: (props) => {
-                        const { className, children } = props;
-                        const match = /language-(\w+)/.exec(className || '');
-                        const language = match ? match[1] : undefined;
-                        const isInline = !className;
-                        
-                        if (isInline) {
-                          return <code className="bg-secondary px-1 py-0.5 rounded text-sm">{children}</code>;
-                        }
-                        
-                        return <CodeBlock code={String(children).replace(/\n$/, '')} language={language} />;
-                      }
-                    }}
-                  >
-                    {message.content || (isLoading && message.role === 'assistant' ? '...' : '') || ''}
-                  </ReactMarkdown>
+              <Avatar className="h-8 w-8 mt-0.5">
+                <div className={cn(
+                  "rounded-full dark:bg-white bg-black"
+                )}>
+                  {message.role === 'user' 
+                    ? <User className="h-6 w-6 m-1 dark:text-black text-white" />
+                    : <Bot className="h-6 w-6 m-1 dark:text-black text-white" />
+                  }
                 </div>
-              )}
+              </Avatar>
+              <div
+                className={cn(
+                  "rounded-lg px-3 py-2 max-w-[85%]",
+                  message.role === 'user' 
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted"
+                )}
+              >
+                {message.role === 'user' ? (
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                ) : (
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown
+                      components={{
+                        pre: ({ children }) => <div className="border border-border rounded-md overflow-hidden my-2">{children}</div>,
+                        code: (props) => {
+                          const { className, children } = props;
+                          const match = /language-(\w+)/.exec(className || '');
+                          const language = match ? match[1] : undefined;
+                          const isInline = !className;
+                          
+                          if (isInline) {
+                            return <code className="bg-secondary px-1 py-0.5 rounded text-sm">{children}</code>;
+                          }
+                          
+                          return <CodeBlock code={String(children).replace(/\n$/, '')} language={language} />;
+                        }
+                      }}
+                    >
+                      {message.content || (isLoading && message.role === 'assistant' ? '...' : '') || ''}
+                    </ReactMarkdown>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </ScrollArea>
   );
-}
+});
 
-// Input component
-function ChatInput({ input, setInput, handleSend, isLoading, inputRef }: ChatInputProps) {
+const ChatInput = memo(function ChatInput({ input, setInput, handleSend, isLoading, inputRef }: ChatInputProps) {
   return (
     <div className="p-4 border-t bg-background">
       <form
@@ -404,7 +400,7 @@ function ChatInput({ input, setInput, handleSend, isLoading, inputRef }: ChatInp
       </form>
     </div>
   );
-}
+});
 
 function CodeBlock({ code, language }: { code: string; language?: string }) {
   const [isCopied, setIsCopied] = useState(false);
