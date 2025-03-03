@@ -37,14 +37,14 @@ export function ChatInterface({ context }: { context?: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Faire défiler vers le bas lorsque de nouveaux messages arrivent
+  // Scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // Effacer l'erreur après 5 secondes
+  // Clear error after 5 seconds
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => setError(null), 5000);
@@ -60,13 +60,13 @@ export function ChatInterface({ context }: { context?: string }) {
       setError(null);
       setIsLoading(true);
       
-      // Ajouter le message de l'utilisateur
+      // Add user message
       const userMessage: Message = { role: 'user', content: trimmedInput };
       const updatedMessages = [...messages, userMessage];
       setMessages(updatedMessages);
       setInput('');
 
-      // Obtenir la réponse de l'IA avec streaming
+      // Get AI response with streaming
       const { messages: historyMessages, newMessage } = await continueConversation(updatedMessages);
       
       let textContent = '';
@@ -92,7 +92,7 @@ export function ChatInterface({ context }: { context?: string }) {
     }
   };
 
-  // Interface mobile flottante
+  // Mobile floating interface
   const mobileInterface = (
     <div className={cn(
       "lg:hidden fixed bottom-4 right-4 z-50 transition-all duration-300 ease-in-out",
@@ -104,15 +104,15 @@ export function ChatInterface({ context }: { context?: string }) {
           className="w-[60px] h-[60px] rounded-full shadow-lg hover:shadow-xl transition-shadow"
           size="icon"
         >
-          <Bot className="h-6 w-6" />
+          <Bot className="h-12 w-12 dark:text-black text-white" />
         </Button>
       ) : (
         <Card className="flex flex-col h-full shadow-lg">
           <div className="flex items-center justify-between p-4 border-b">
             <div className="flex items-center space-x-3">
               <Avatar className="h-8 w-8">
-                <div className="rounded-full bg-gradient-to-br from-violet-500 to-indigo-500">
-                  <Bot className="h-5 w-5 text-white m-1.5" />
+                <div className="rounded-full dark:bg-white bg-black">
+                  <Bot className="h-5 w-5 m-1.5 dark:text-black text-white" />
                 </div>
               </Avatar>
               <div>
@@ -147,7 +147,7 @@ export function ChatInterface({ context }: { context?: string }) {
     </div>
   );
 
-  // Interface desktop intégrée
+  // Desktop integrated interface
   const desktopInterface = isChatVisible && (
     <div className={cn(
       "hidden lg:flex flex-col border-l bg-background shadow-lg",
@@ -158,8 +158,8 @@ export function ChatInterface({ context }: { context?: string }) {
       <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center space-x-3">
           <Avatar className="h-8 w-8">
-            <div className="rounded-full bg-gradient-to-br from-violet-500 to-indigo-500">
-              <Bot className="h-5 w-5 text-white m-1.5" />
+            <div className="rounded-full dark:bg-white bg-black">
+              <Bot className="h-5 w-5 m-1.5 dark:text-black text-white" />
             </div>
           </Avatar>
           <div>
@@ -202,7 +202,7 @@ export function ChatInterface({ context }: { context?: string }) {
   );
 }
 
-// Composant pour le contenu du chat
+// Chat content component
 function ChatContent({ messages, error, isLoading, scrollRef }: ChatContentProps) {
   return (
     <ScrollArea className="h-full">
@@ -215,8 +215,8 @@ function ChatContent({ messages, error, isLoading, scrollRef }: ChatContentProps
         
         {messages.length === 0 && (
           <div className="text-center text-muted-foreground text-sm py-8">
-            <Bot className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-            <p>Comment puis-je vous aider avec le SDK ?</p>
+            <Bot className="h-16 w-16 mx-auto mb-3 dark:text-black text-white dark:bg-white bg-black rounded-full p-3" />
+            <p>How can I help you with the SDK?</p>
           </div>
         )}
         
@@ -230,14 +230,11 @@ function ChatContent({ messages, error, isLoading, scrollRef }: ChatContentProps
           >
             <Avatar className="h-8 w-8 mt-0.5">
               <div className={cn(
-                "rounded-full",
-                message.role === 'user' 
-                  ? "bg-gradient-to-br from-blue-500 to-cyan-500"
-                  : "bg-gradient-to-br from-violet-500 to-indigo-500"
+                "rounded-full dark:bg-white bg-black"
               )}>
                 {message.role === 'user' 
-                  ? <User className="h-5 w-5 text-white m-1.5" />
-                  : <Bot className="h-5 w-5 text-white m-1.5" />
+                  ? <User className="h-6 w-6 m-1 dark:text-black text-white" />
+                  : <Bot className="h-6 w-6 m-1 dark:text-black text-white" />
                 }
               </div>
             </Avatar>
@@ -257,8 +254,8 @@ function ChatContent({ messages, error, isLoading, scrollRef }: ChatContentProps
         {isLoading && (
           <div className="flex items-center space-x-2.5">
             <Avatar className="h-8 w-8">
-              <div className="rounded-full bg-gradient-to-br from-violet-500 to-indigo-500">
-                <Bot className="h-5 w-5 text-white m-1.5" />
+              <div className="rounded-full dark:bg-white bg-black">
+                <Bot className="h-6 w-6 m-1 dark:text-black text-white" />
               </div>
             </Avatar>
             <div className="rounded-lg px-3 py-2 bg-muted">
@@ -271,7 +268,7 @@ function ChatContent({ messages, error, isLoading, scrollRef }: ChatContentProps
   );
 }
 
-// Composant pour la zone de saisie
+// Input component
 function ChatInput({ input, setInput, handleSend, isLoading, inputRef }: ChatInputProps) {
   return (
     <div className="p-4 border-t bg-background">
@@ -286,7 +283,7 @@ function ChatInput({ input, setInput, handleSend, isLoading, inputRef }: ChatInp
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={isLoading ? "Envoi en cours..." : "Posez une question sur le SDK..."}
+          placeholder={isLoading ? "Sending..." : "Ask a question about the SDK..."}
           disabled={isLoading}
           className={cn(
             "flex-1",

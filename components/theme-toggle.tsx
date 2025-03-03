@@ -10,6 +10,7 @@ export function ThemeToggle() {
   const { resolvedTheme, theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [isRotating, setIsRotating] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
 
   // Éviter les erreurs d'hydratation
   useEffect(() => {
@@ -31,9 +32,33 @@ export function ThemeToggle() {
       variant="ghost"
       size="icon"
       onClick={toggleTheme}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       aria-label="Toggle theme"
-      className="rounded-full h-8 w-8 relative"
+      className="rounded-full h-8 w-8 relative p-0 overflow-hidden"
     >
+      <div className="absolute inset-0 w-full h-full">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <circle
+            cx="50"
+            cy="50"
+            r="48"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className={cn(
+              "transition-all duration-500 ease-in-out",
+              isHovered ? "stroke-dasharray-0" : "stroke-dasharray-301"
+            )}
+            style={{
+              transformOrigin: 'center',
+              transform: 'rotate(-90deg)',
+              strokeDasharray: '301',
+              strokeDashoffset: isHovered ? '0' : '301'
+            }}
+          />
+        </svg>
+      </div>
       <div className={cn(
         "w-full h-full flex items-center justify-center",
         isRotating && "animate-theme-toggle"
