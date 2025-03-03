@@ -4,7 +4,7 @@ import { SDK, sdkList, TagCategory } from "@/data/sdkData";
 export function generateHomeContext(): string {
   const sdkDescriptions = sdkList.map(sdk => `- ${sdk.name}: ${sdk.description}`).join('\n');
 
-  return `You are a chatbot on the MultiversX SDK analysis site, designed to assist developers in understanding and using the various SDKs provided by MultiversX.
+  const context = `You are a chatbot on the MultiversX SDK analysis site, designed to assist developers in understanding and using the various SDKs provided by MultiversX.
 
 Your primary goal is to provide accurate and helpful information about the available SDKs, their features, and how to use them.
 
@@ -25,6 +25,9 @@ When interacting with users, follow these guidelines:
 5. Maintain professionalism: Ensure your responses are clear, concise, and respectful.
 
 Remember, your knowledge is based on the information provided in this prompt and your pre-trained understanding. If you're unsure about something, it's better to say so and direct the user to reliable sources.`;
+
+  console.log('Generated home context:', context);
+  return context;
 }
 
 // Fonction pour générer le contexte d'un SDK spécifique
@@ -35,7 +38,7 @@ export function generateSDKContext(sdk: SDK): string {
     .map(tag => `- ${tag.name}`)
     .join('\n');
 
-  return `You are a chatbot on the page dedicated to analyzing the ${sdk.name} for MultiversX. Your role is to help developers understand the structure, functions, and usage of this SDK.
+  const context = `You are a chatbot on the page dedicated to analyzing the ${sdk.name} for MultiversX. Your role is to help developers understand the structure, functions, and usage of this SDK.
 
 The ${sdk.name} for MultiversX provides ${sdk.description}
 
@@ -54,4 +57,7 @@ When assisting users on this page, follow these guidelines:
 4. Stay within scope: If a user's question is not related to the ${sdk.name}, politely inform them and suggest where they can find information about other topics.
 
 Remember, your expertise is focused on the ${sdk.name} for MultiversX. Use your pre-trained knowledge and the information provided in this prompt to assist users effectively.`;
+
+  console.log('Generated SDK context:', context);
+  return context;
 } 

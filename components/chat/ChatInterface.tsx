@@ -7,11 +7,30 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
-import { Bot, Send, User, Loader2, Minimize2, X } from 'lucide-react';
+import { Bot, Send, User, Loader2, Minimize2, X, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { readStreamableValue } from 'ai/rsc';
 import { useChat } from './chat-provider';
 import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
+import CodeMirror from '@uiw/react-codemirror';
+import { javascript } from '@codemirror/lang-javascript';
+import { python } from '@codemirror/lang-python';
+import { rust } from '@codemirror/lang-rust';
+import { cpp } from '@codemirror/lang-cpp';
+import { java } from '@codemirror/lang-java';
+import { php } from '@codemirror/lang-php';
+import { sql } from '@codemirror/lang-sql';
+import { xml } from '@codemirror/lang-xml';
+import { json } from '@codemirror/lang-json';
+import { markdown } from '@codemirror/lang-markdown';
+import { EditorView } from '@codemirror/view';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ChatContentProps {
   messages: Message[];
@@ -28,21 +47,34 @@ interface ChatInputProps {
   inputRef: RefObject<HTMLInputElement>;
 }
 
-export function ChatInterface({ context }: { context?: string }) {
-  const { isChatVisible, hideChat, chatWidth, startResizing } = useChat();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export function ChatInterface() {
+  const { 
+    messages, 
+    setMessages, 
+    input, 
+    setInput, 
+    handleInputChange, 
+    handleSubmit, 
+    isLoading,
+    setIsLoading,
+    error,
+    setError,
+    context,
+    isChatVisible,
+    chatWidth,
+    hideChat,
+    startResizing
+  } = useChat();
+  const [isOpen, setIsOpen] = useState(true);
+  const [currentContext, setCurrentContext] = useState<string>();
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+  const [hasAddedContext, setHasAddedContext] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Log du contexte au montage du composant
+  // Mettre à jour le contexte local quand le contexte global change
   useEffect(() => {
-    if (context) {
-      console.log('Contexte du chatbot:', context);
-    }
+    setCurrentContext(context);
   }, [context]);
 
   // Scroll to bottom when new messages arrive
@@ -58,7 +90,7 @@ export function ChatInterface({ context }: { context?: string }) {
       const timer = setTimeout(() => setError(null), 5000);
       return () => clearTimeout(timer);
     }
-  }, [error]);
+  }, [error, setError]);
 
   const handleSend = async () => {
     const trimmedInput = input.trim();
@@ -68,37 +100,78 @@ export function ChatInterface({ context }: { context?: string }) {
       setError(null);
       setIsLoading(true);
       
-      // Add user message
-      const userMessage: Message = { role: 'user', content: trimmedInput };
-      const updatedMessages = [...messages, userMessage];
-      setMessages(updatedMessages);
+      // Créer le message utilisateur
+      const userMessage = { 
+        role: 'user' as const, 
+        content: trimmedInput 
+      };
+      
+      // Préparer les messages pour l'API avec le contexte si nécessaire
+      let messagesToSend = [...messages, userMessage];
+      if (context && !hasAddedContext) {
+        messagesToSend = [
+          { role: 'system' as const, content: context },
+          ...messagesToSend
+        ];
+        setHasAddedContext(true);
+      }
+
+      // Mettre à jour l'UI avec le message utilisateur
+      setMessages(prev => [...prev, userMessage]);
       setInput('');
 
-      // Get AI response with streaming
-      const { messages: historyMessages, newMessage } = await continueConversation(updatedMessages);
+      // Obtenir la réponse de l'IA avec streaming
+      const { newMessage } = await continueConversation(messagesToSend);
       
       let textContent = '';
+      let lastUpdate = Date.now();
       for await (const delta of readStreamableValue(newMessage)) {
         textContent = `${textContent}${delta}`;
-        setMessages([
-          ...historyMessages,
-          { role: 'assistant', content: textContent }
-        ]);
+        
+        // Limiter les mises à jour de l'UI à une fois toutes les 100ms pour de meilleures performances
+        const now = Date.now();
+        if (now - lastUpdate > 100) {
+          setMessages(prev => [...prev.slice(0, -1), { role: 'assistant' as const, content: textContent }]);
+          lastUpdate = now;
+        }
       }
-    } catch (error: any) {
-      console.error('Error:', error);
-      setError(error.message || "An error occurred");
+      // Mise à jour finale pour s'assurer que tout le contenu est affiché
+      setMessages(prev => [...prev.slice(0, -1), { role: 'assistant' as const, content: textContent }]);
+    } catch (err: any) {
+      console.error('Error:', err);
+      setError(err.message || "An error occurred");
       
-      // Add error message to chat
-      const errorMessage: Message = {
-        role: 'assistant',
-        content: `⚠️ ${error.message || "Sorry, an error occurred. Please try again."}`
+      const errorMessage = {
+        role: 'assistant' as const,
+        content: `⚠️ ${err.message || "Sorry, an error occurred. Please try again."}`
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Reset hasAddedContext when context changes
+  useEffect(() => {
+    setHasAddedContext(false);
+  }, [context]);
+
+  const contextDisplay = context ? (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground">
+            <Info className="h-3.5 w-3.5" />
+            <span className="font-bold">Context:</span>
+            <span className="truncate max-w-[200px]">{context.slice(0, 50)}...</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-[500px] max-h-[300px] overflow-y-auto p-4 bg-secondary z-[200]">
+          <p className="text-sm whitespace-pre-wrap">{context}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  ) : null;
 
   // Mobile floating interface
   const mobileInterface = (
@@ -158,7 +231,7 @@ export function ChatInterface({ context }: { context?: string }) {
   // Desktop integrated interface
   const desktopInterface = isChatVisible && (
     <div className={cn(
-      "hidden lg:flex flex-col border-l bg-background shadow-lg",
+      "hidden lg:flex flex-col border bg-background shadow-lg",
       "fixed top-[4rem] right-0 bottom-0",
       "transition-transform duration-300 z-50",
       !isChatVisible && "translate-x-full"
@@ -166,7 +239,7 @@ export function ChatInterface({ context }: { context?: string }) {
     style={{ width: `${chatWidth}px` }}
     >
       <div 
-        className="absolute left-[-6px] top-0 bottom-0 w-3 cursor-ew-resize hover:bg-primary/20 group z-[100]"
+        className="absolute left-[-6px] top-0 bottom-0 w-3 cursor-ew-resize hover:bg-primary/20 group z-[50]"
         onMouseDown={startResizing}
       >
         <div className="absolute left-[5px] top-0 bottom-0 w-[2px] bg-border group-hover:bg-primary/50 group-active:bg-primary" />
@@ -192,7 +265,8 @@ export function ChatInterface({ context }: { context?: string }) {
           <X className="h-5 w-5" />
         </Button>
       </div>
-      <div className="flex-1 overflow-hidden">
+      {contextDisplay}
+      <div className="flex-1 overflow-hidden border-t">
         <ChatContent
           messages={messages}
           error={error}
@@ -266,7 +340,25 @@ function ChatContent({ messages, error, isLoading, scrollRef }: ChatContentProps
                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>
               ) : (
                 <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                  <ReactMarkdown
+                    components={{
+                      pre: ({ children }) => <>{children}</>,
+                      code: (props) => {
+                        const { className, children } = props;
+                        const match = /language-(\w+)/.exec(className || '');
+                        const language = match ? match[1] : undefined;
+                        const isInline = !className;
+                        
+                        if (isInline) {
+                          return <code className="bg-secondary px-1 py-0.5 rounded text-sm">{children}</code>;
+                        }
+                        
+                        return <CodeBlock code={String(children).replace(/\n$/, '')} language={language} />;
+                      }
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
                 </div>
               )}
             </div>
@@ -328,6 +420,73 @@ function ChatInput({ input, setInput, handleSend, isLoading, inputRef }: ChatInp
           )}
         </Button>
       </form>
+    </div>
+  );
+}
+
+function CodeBlock({ code, language }: { code: string; language?: string }) {
+  const getLanguageExtension = (lang?: string) => {
+    switch (lang?.toLowerCase()) {
+      case 'javascript':
+      case 'js':
+        return javascript();
+      case 'typescript':
+      case 'ts':
+        return javascript({ typescript: true });
+      case 'python':
+      case 'py':
+        return python();
+      case 'rust':
+        return rust();
+      case 'cpp':
+      case 'c++':
+        return cpp();
+      case 'java':
+        return java();
+      case 'php':
+        return php();
+      case 'sql':
+        return sql();
+      case 'xml':
+      case 'html':
+        return xml();
+      case 'json':
+        return json();
+      case 'markdown':
+      case 'md':
+        return markdown();
+      default:
+        return javascript();
+    }
+  };
+
+  return (
+    <div className="rounded-md overflow-hidden my-2 border">
+      <CodeMirror
+        value={code}
+        height="auto"
+        theme="dark"
+        basicSetup={{
+          lineNumbers: true,
+          highlightActiveLineGutter: false,
+          highlightActiveLine: false,
+          foldGutter: false,
+        }}
+        editable={false}
+        extensions={[
+          getLanguageExtension(language),
+          EditorView.lineWrapping,
+          EditorView.theme({
+            "&": {
+              backgroundColor: "transparent !important"
+            },
+            ".cm-gutters": {
+              backgroundColor: "transparent !important",
+              border: "none"
+            }
+          })
+        ]}
+      />
     </div>
   );
 }

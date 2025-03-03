@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useState } from "react"
 import { SDK } from "@/data/sdkData"
 import { generateSDKContext } from "@/lib/chat-context"
+import { useChat } from '@/components/chat/chat-provider'
 
 // Composant qui utilise le contexte pour rendre le contenu du fichier
 function FileContentWrapper() {
@@ -40,6 +41,7 @@ function FileContentWrapper() {
 }
 
 export default function AnalyzerPage() {
+  const { setContext } = useChat();
   const params = useParams()
   const repoPath = decodeURIComponent((params.repo as string).replace(/%2F/g, "/"))
   const [preloadedSDK, setPreloadedSDK] = useState<SDK | null>(null)
@@ -51,13 +53,20 @@ export default function AnalyzerPage() {
       if (sdkData) {
         const sdk = JSON.parse(sdkData)
         setPreloadedSDK(sdk)
-        // Effacer les données après utilisation pour éviter des problèmes lors de futurs chargements
+        // Générer le contexte du SDK
+        const context = generateSDKContext(sdk)
+        setContext(context)
+        // Effacer les données après utilisation
         localStorage.removeItem('currentSDK')
+      } else {
+        // Si pas de SDK, utiliser le chemin du dépôt comme contexte
+        setContext(`Current repository: ${repoPath}`)
       }
     } catch (error) {
       console.error("Error loading SDK data from localStorage:", error)
+      setContext(`Current repository: ${repoPath}`)
     }
-  }, [])
+  }, [repoPath, setContext])
   
   return (
     <main className="container mx-auto py-6 max-w-7xl">
@@ -104,7 +113,7 @@ export default function AnalyzerPage() {
           </div>
 
           {/* Chat Assistant */}
-          <ChatInterface context={preloadedSDK ? generateSDKContext(preloadedSDK) : `Current repository: ${repoPath}`} />
+          <ChatInterface />
         </RepoDataProvider>
       </div>
     </main>

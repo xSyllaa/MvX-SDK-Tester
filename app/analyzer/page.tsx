@@ -18,6 +18,7 @@ import { Card } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { generateHomeContext } from "@/lib/chat-context"
 import { ChatInterface } from "@/components/chat/ChatInterface"
+import { useChat } from '@/components/chat/chat-provider'
 
 // Icônes pour chaque catégorie
 const CategoryIcons: Record<TagCategory, React.ReactNode> = {
@@ -31,6 +32,7 @@ const CategoryIcons: Record<TagCategory, React.ReactNode> = {
 }
 
 export default function AnalyzerPage() {
+  const { setContext } = useChat();
   const [searchQuery, setSearchQuery] = useState("")
   const [activeFilters, setActiveFilters] = useState<{category: TagCategory, value: string}[]>([])
   const [activeCategory, setActiveCategory] = useState<TagCategory>(TagCategory.LANGUAGE)
@@ -38,6 +40,12 @@ export default function AnalyzerPage() {
   const { cloneRepository, isLoading, error } = useGithubClone()
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  // Générer le contexte au chargement de la page
+  useEffect(() => {
+    const context = generateHomeContext();
+    setContext(context);
+  }, [setContext]);
 
   // Récupérer le paramètre search de l'URL au chargement
   useEffect(() => {
@@ -194,7 +202,7 @@ export default function AnalyzerPage() {
           </div>
 
           {/* Chat Assistant */}
-          <ChatInterface context={generateHomeContext()} />
+          <ChatInterface />
 
           {/* Zone de recherche */}
           <div className="flex flex-col sm:flex-row gap-4">
