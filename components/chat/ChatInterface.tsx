@@ -181,20 +181,22 @@ export function ChatInterface() {
 
   const contextDisplay = (
     <div className="px-4 py-2 border-b">
-      <TooltipProvider>
+      <TooltipProvider delayDuration={0}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className="w-full flex items-center justify-start gap-2 text-xs text-muted-foreground hover:text-foreground h-auto py-2"
+            <div 
+              role="button"
+              tabIndex={0}
+              className="w-full flex items-center justify-start gap-2 text-xs text-muted-foreground hover:text-foreground py-2 cursor-pointer"
             >
               <Info className="h-3.5 w-3.5 shrink-0" />
               <span className="font-bold shrink-0">Context:</span>
               <span className="truncate">{context || "No context"}</span>
-            </Button>
+            </div>
           </TooltipTrigger>
           <TooltipContent 
             side="bottom" 
+            sideOffset={5}
             className="max-w-[500px] max-h-[300px] overflow-y-auto p-4 bg-popover border-2 border-border shadow-lg z-[200]"
           >
             <p className="text-sm whitespace-pre-wrap">{context || "No context defined"}</p>
