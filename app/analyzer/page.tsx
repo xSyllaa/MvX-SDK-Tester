@@ -241,12 +241,12 @@ export default function AnalyzerPage() {
                     key={category}
                     variant="outline"
                     size="sm"
-                    className="flex items-center gap-1.5 h-8"
+                    className="flex items-center gap-1.5 h-8 transition-all hover:opacity-90"
                     style={activeCategory === category ? 
-                      { backgroundColor: tagCategoryColors[category], color: "white" } : 
+                      { backgroundColor: tagCategoryColors[category].base, color: "white" } : 
                       { 
-                        backgroundColor: `${tagCategoryColors[category]}20`, 
-                        borderColor: tagCategoryColors[category], 
+                        backgroundColor: tagCategoryColors[category].light, 
+                        borderColor: tagCategoryColors[category].base, 
                         color: "inherit" 
                       }
                     }
@@ -254,7 +254,7 @@ export default function AnalyzerPage() {
                   >
                     <span 
                       className="w-2 h-2 rounded-full" 
-                      style={{ backgroundColor: activeCategory === category ? "white" : tagCategoryColors[category] }}
+                      style={{ backgroundColor: activeCategory === category ? "white" : tagCategoryColors[category].base }}
                     />
                     <span>{category}</span>
                     <span className="ml-1.5 text-xs opacity-70 font-normal">
@@ -287,9 +287,9 @@ export default function AnalyzerPage() {
                           : "hover:border-primary hover:text-primary"
                       }`}
                       style={{ 
-                        backgroundColor: isActive ? tagCategoryColors[activeCategory] : `${tagCategoryColors[activeCategory]}10`,
-                        borderColor: isActive ? tagCategoryColors[activeCategory] : undefined,
-                        color: isActive ? "white" : undefined
+                        backgroundColor: isActive ? tagCategoryColors[activeCategory].base : tagCategoryColors[activeCategory].light,
+                        borderColor: tagCategoryColors[activeCategory].base,
+                        color: isActive ? "white" : "inherit"
                       }}
                       onClick={() => isActive 
                         ? handleRemoveFilter(activeCategory, value) 
@@ -341,9 +341,9 @@ export default function AnalyzerPage() {
                     <Badge 
                       key={`${filter.category}-${filter.value}`}
                       variant="default"
-                      className="flex items-center gap-1 py-1.5 px-2 transition-all"
+                      className="flex items-center gap-1 py-1.5 px-2 transition-all hover:opacity-90"
                       style={{ 
-                        backgroundColor: tagCategoryColors[filter.category],
+                        backgroundColor: tagCategoryColors[filter.category].base,
                         color: "white"
                       }}
                     >

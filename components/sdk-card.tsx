@@ -69,7 +69,7 @@ export function SDKCard({ sdk, onAnalyze }: SDKCardProps) {
       <div className="flex flex-wrap gap-1.5 mb-4">
         <TooltipProvider delayDuration={0}>
           {sdk.tags.map((tag) => {
-            const bgColor = tagCategoryColors[tag.category] || "#e5e7eb"
+            const colors = tagCategoryColors[tag.category]
             return (
               <Tooltip key={tag.name}>
                 <TooltipTrigger>
@@ -77,15 +77,24 @@ export function SDKCard({ sdk, onAnalyze }: SDKCardProps) {
                     variant="outline"
                     className="font-mono text-[9px] leading-none lg:text-[10px] py-1 px-2 whitespace-normal break-words min-h-[20px] cursor-help"
                     style={{
-                      backgroundColor: `${bgColor}40`,
-                      borderColor: bgColor,
+                      backgroundColor: colors.light,
+                      borderColor: colors.base,
                     }}
                   >
                     {tag.name}
                   </Badge>
                 </TooltipTrigger>
-                <TooltipContent side="top" align="center">
-                  <p>{tag.category} - {tagCategoryDescriptions[tag.category]}</p>
+                <TooltipContent 
+                  side="top" 
+                  align="center"
+                  className="border-2"
+                  style={{
+                    backgroundColor: "hsl(var(--background))",
+                    borderColor: colors.base,
+                    color: "inherit"
+                  }}
+                >
+                  <p className="text-xs">{tag.category} - {tagCategoryDescriptions[tag.category]}</p>
                 </TooltipContent>
               </Tooltip>
             )

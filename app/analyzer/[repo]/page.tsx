@@ -14,6 +14,14 @@ import { useEffect, useState } from "react"
 import { SDK } from "@/data/sdkData"
 import { generateSDKContext } from "@/lib/chat-context"
 import { useChat } from '@/components/chat/chat-provider'
+import { tagCategoryColors, TagCategory, tagCategoryDescriptions } from "@/data/sdkData"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Badge } from "@/components/ui/badge"
 
 // Composant qui utilise le contexte pour rendre le contenu du fichier
 function FileContentWrapper() {

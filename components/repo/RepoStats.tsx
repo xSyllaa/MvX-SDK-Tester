@@ -4,6 +4,8 @@ import { Loader2 } from "lucide-react"
 import { useRepoData } from "@/components/repo/RepoDataProvider"
 import { tagCategoryColors, TagCategory, tagCategoryDescriptions, type SDK, sdkList } from '@/data/sdkData'
 import { useState, useEffect } from 'react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Badge } from "@/components/ui/badge"
 
 // Fonction pour obtenir la description de la catégorie
 function getCategoryDescription(category: TagCategory): string {
@@ -234,26 +236,44 @@ export function RepoStats() {
               </p>
             )}
             
-            {/* Tags - Avec infobulles - afficher si disponibles */}
+            {/* Tags - Avec infobulles */}
             {tags.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
-                {tags.map((tag, index) => {
-                  const category = tag.category as TagCategory;
-                  return (
-                    <span 
-                      key={index} 
-                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-help tooltip" 
-                      style={{ 
-                        backgroundColor: `${tagCategoryColors[category]}20`, 
-                        color: tagCategoryColors[category],
-                        border: `1px solid ${tagCategoryColors[category]}`
-                      }}
-                      data-tooltip={`${category} - ${tagCategoryDescriptions[category]}`}
-                    >
-                      {tag.name}
-                    </span>
-                  );
-                })}
+                <TooltipProvider delayDuration={0}>
+                  {tags.map((tag, index) => {
+                    const category = tag.category as TagCategory;
+                    const colors = tagCategoryColors[category];
+                    return (
+                      <Tooltip key={index}>
+                        <TooltipTrigger>
+                          <Badge
+                            variant="outline"
+                            className="font-mono text-[9px] leading-none lg:text-[10px] py-1 px-2 whitespace-normal break-words min-h-[20px] cursor-help"
+                            style={{
+                              backgroundColor: colors.light,
+                              borderColor: colors.base,
+                              color: colors.base
+                            }}
+                          >
+                            {tag.name}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent 
+                          side="top" 
+                          align="center"
+                          className="border-2"
+                          style={{
+                            backgroundColor: "hsl(var(--background))",
+                            borderColor: colors.base,
+                            color: "inherit"
+                          }}
+                        >
+                          <p className="text-xs">{tag.category} - {tagCategoryDescriptions[tag.category]}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
+                </TooltipProvider>
               </div>
             )}
           </>
