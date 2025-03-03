@@ -66,16 +66,11 @@ export function ChatInterface() {
     startResizing
   } = useChat();
   const [isOpen, setIsOpen] = useState(true);
-  const [currentContext, setCurrentContext] = useState<string>();
-  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
-  const [hasAddedContext, setHasAddedContext] = useState(false);
+  const hasAddedContextRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // Mettre à jour le contexte local quand le contexte global change
-  useEffect(() => {
-    setCurrentContext(context);
-  }, [context]);
+  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+  const lastContextRef = useRef(context);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -92,6 +87,14 @@ export function ChatInterface() {
     }
   }, [error, setError]);
 
+  // Reset hasAddedContext when context changes
+  useEffect(() => {
+    if (context !== lastContextRef.current) {
+      hasAddedContextRef.current = false;
+      lastContextRef.current = context;
+    }
+  }, [context]);
+
   const handleSend = async () => {
     const trimmedInput = input.trim();
     if (!trimmedInput || isLoading) return;
@@ -107,14 +110,19 @@ export function ChatInterface() {
       };
       
       // Préparer les messages pour l'API avec le contexte si nécessaire
-      let messagesToSend = [...messages, userMessage];
-      if (context && !hasAddedContext) {
+      let messagesToSend = [...messages];
+      
+      // Ajouter le contexte au début s'il n'a pas déjà été ajouté
+      if (context && !hasAddedContextRef.current) {
         messagesToSend = [
           { role: 'system' as const, content: context },
           ...messagesToSend
         ];
-        setHasAddedContext(true);
+        hasAddedContextRef.current = true;
       }
+      
+      // Ajouter le message utilisateur
+      messagesToSend.push(userMessage);
 
       // Mettre à jour l'UI avec le message utilisateur et vider l'input
       setInput('');
@@ -171,12 +179,7 @@ export function ChatInterface() {
     }
   };
 
-  // Reset hasAddedContext when context changes
-  useEffect(() => {
-    setHasAddedContext(false);
-  }, [context]);
-
-  const contextDisplay = context ? (
+  const contextDisplay = (
     <div className="px-4 py-2 border-b">
       <TooltipProvider>
         <Tooltip>
@@ -187,19 +190,19 @@ export function ChatInterface() {
             >
               <Info className="h-3.5 w-3.5 shrink-0" />
               <span className="font-bold shrink-0">Context:</span>
-              <span className="truncate">{context}</span>
+              <span className="truncate">{context || "No context"}</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent 
             side="bottom" 
             className="max-w-[500px] max-h-[300px] overflow-y-auto p-4 bg-popover border-2 border-border shadow-lg z-[200]"
           >
-            <p className="text-sm whitespace-pre-wrap">{context}</p>
+            <p className="text-sm whitespace-pre-wrap">{context || "No context defined"}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
     </div>
-  ) : null;
+  );
 
   // Mobile floating interface
   const mobileInterface = (

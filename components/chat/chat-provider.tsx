@@ -72,7 +72,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   };
 
   const updateContext = (newContext: string) => {
-    setContext(newContext);
+    if (newContext !== context) {
+      setContext(newContext);
+      setMessages([]);
+    }
   };
 
   useEffect(() => {
