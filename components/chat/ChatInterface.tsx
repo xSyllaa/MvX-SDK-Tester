@@ -171,9 +171,9 @@ export function ChatInterface({ context }: { context?: string }) {
           variant="ghost"
           size="icon"
           onClick={hideChat}
-          className="h-8 w-8 hover:bg-muted"
+          className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground rounded-full transition-colors"
         >
-          <X className="h-4 w-4" />
+          <X className="h-5 w-5" />
         </Button>
       </div>
       <div className="flex-1 overflow-hidden">

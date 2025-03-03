@@ -18,13 +18,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const content = document.querySelector('.flex-1.flex.justify-center');
     if (content) {
-      if (isChatVisible) {
-        content.classList.add('lg:pr-[400px]');
-        content.classList.remove('lg:max-w-6xl', 'lg:mx-auto');
-      } else {
-        content.classList.remove('lg:pr-[400px]');
-        content.classList.add('lg:max-w-6xl', 'lg:mx-auto');
-      }
+      content.classList.toggle('lg:pr-[400px]', isChatVisible);
     }
   }, [isChatVisible]);
 

@@ -1,32 +1,22 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { MessageCircle, X } from "lucide-react";
+import { Bot } from "lucide-react";
 import { useChat } from "./chat-provider";
-import { cn } from "@/lib/utils";
 
 export function ChatToggle() {
-  const { isChatVisible, toggleChat } = useChat();
+  const { isChatVisible, showChat } = useChat();
+
+  if (isChatVisible) return null;
 
   return (
     <Button
-      onClick={toggleChat}
+      onClick={showChat}
+      className="fixed bottom-4 right-4 w-12 h-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
       size="icon"
-      variant="outline"
-      className={cn(
-        "fixed z-50 transition-all duration-300",
-        "h-10 w-10 rounded-full shadow-lg hover:shadow-xl",
-        isChatVisible
-          ? "bottom-4 right-[420px]"
-          : "bottom-4 right-4",
-        isChatVisible && "bg-primary hover:bg-primary text-primary-foreground hover:text-primary-foreground"
-      )}
+      variant="default"
     >
-      {isChatVisible ? (
-        <X className="h-4 w-4" />
-      ) : (
-        <MessageCircle className="h-4 w-4" />
-      )}
+      <Bot className="h-6 w-6" />
     </Button>
   );
 } 

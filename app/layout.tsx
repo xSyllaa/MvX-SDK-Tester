@@ -38,7 +38,7 @@ export default function RootLayout({
                 <TopMenuBar />
                 <div className="flex-1 flex flex-col lg:flex-row relative">
                   <div className="flex-1 flex justify-center transition-all duration-300">
-                    <div className="w-full px-4 lg:px-8">
+                    <div className="w-full px-4 lg:px-8 max-w-full lg:max-w-6xl mx-auto">
                       {children}
                     </div>
                   </div>
