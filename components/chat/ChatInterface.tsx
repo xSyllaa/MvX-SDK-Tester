@@ -68,7 +68,10 @@ export function ChatInterface() {
     chatWidth,
     hideChat,
     showChat,
-    startResizing
+    startResizing,
+    setChatWidth,
+    isResizing,
+    setIsResizing
   } = useChat();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -84,6 +87,32 @@ export function ChatInterface() {
       document.documentElement.style.removeProperty('--chat-width');
     };
   }, [isChatVisible, chatWidth]);
+
+  // Ajout de l'effet pour gérer le redimensionnement
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Calculer la nouvelle largeur en fonction de la position de la souris
+      const newWidth = window.innerWidth - e.clientX;
+      // Limiter entre 300px et 800px
+      setChatWidth(Math.max(300, Math.min(800, newWidth)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.body.style.cursor = 'ew-resize';
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+    };
+  }, [isResizing, setChatWidth, setIsResizing]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -191,15 +220,23 @@ export function ChatInterface() {
       "hidden lg:flex flex-col border bg-background shadow-lg",
       "fixed top-[4rem] right-0 bottom-0",
       "transition-transform duration-300 z-50",
-      !isChatVisible && "translate-x-full"
+      !isChatVisible && "translate-x-full",
+      isResizing && "select-none"
     )}
     style={{ width: `${chatWidth}px` }}
     >
       <div 
         className="absolute left-[-6px] top-0 bottom-0 w-3 cursor-ew-resize hover:bg-primary/20 group z-[50]"
-        onMouseDown={startResizing}
+        onMouseDown={(e) => {
+          setIsResizing(true);
+          e.preventDefault();
+        }}
       >
-        <div className="absolute left-[5px] top-0 bottom-0 w-[2px] bg-border group-hover:bg-primary/50 group-active:bg-primary" />
+        <div className={cn(
+          "absolute left-[5px] top-0 bottom-0 w-[2px] transition-colors",
+          "bg-border group-hover:bg-primary/50",
+          isResizing ? "bg-primary" : "group-active:bg-primary"
+        )} />
       </div>
       <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center space-x-3">

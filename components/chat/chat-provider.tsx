@@ -12,7 +12,7 @@ export interface ChatContextType {
   setInput: Dispatch<SetStateAction<string>>;
   handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: FormEvent) => Promise<void>;
-  handleSend: (message?: string) => Promise<void>;
+  handleSend: (directMessage?: string) => Promise<void>;
   isLoading: boolean;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
   error: string | null;
@@ -21,6 +21,9 @@ export interface ChatContextType {
   setContext: Dispatch<SetStateAction<string>>;
   isChatVisible: boolean;
   chatWidth: number;
+  setChatWidth: Dispatch<SetStateAction<number>>;
+  isResizing: boolean;
+  setIsResizing: Dispatch<SetStateAction<boolean>>;
   hideChat: () => void;
   showChat: () => void;
   startResizing: (e: ReactMouseEvent<HTMLDivElement>) => void;
@@ -146,21 +149,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const startResizing = (e: ReactMouseEvent<HTMLDivElement>) => {
     setIsResizing(true);
-    const startX = e.clientX;
-    const startWidth = chatWidth;
-
-    const handleMouseMove = (e: globalThis.MouseEvent) => {
-      if (!isResizing) return;
-      const newWidth = startWidth + (e.clientX - startX);
-      setChatWidth(Math.max(300, Math.min(800, newWidth)));
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    e.preventDefault();
   };
 
   return (
@@ -181,6 +170,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         setContext,
         isChatVisible,
         chatWidth,
+        setChatWidth,
+        isResizing,
+        setIsResizing,
         hideChat,
         showChat,
         startResizing

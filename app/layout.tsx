@@ -37,7 +37,7 @@ export default function RootLayout({
               <div className="flex flex-col min-h-screen">
                 <TopMenuBar />
                 <div className="flex-1 flex flex-col lg:flex-row relative">
-                  <div className="flex-1 min-w-0 transition-all duration-300 lg:pr-[var(--chat-width,0px)]">
+                  <div className="flex-1 min-w-0 transition-all duration-300 lg:pr-[var(--chat-width,0px)] overflow-x-hidden">
                     {children}
                   </div>
                   <ChatInterface />
