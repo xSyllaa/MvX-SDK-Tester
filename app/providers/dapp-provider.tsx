@@ -9,30 +9,41 @@ import type { PropsWithChildren } from "react";
 export type Environment = 'mainnet' | 'devnet' | 'testnet';
 
 const networkConfigs = {
-  devnet: {
-    name: "MultiversX Devnet",
-    apiAddress: "https://devnet-api.multiversx.com",
-    explorerAddress: "https://devnet-explorer.multiversx.com",
-    walletAddress: "https://devnet-wallet.multiversx.com",
-    chainId: "D",
+  mainnet: {
+    name: "MultiversX Mainnet",
+    apiAddress: "https://api.multiversx.com",
+    explorerAddress: "https://explorer.multiversx.com",
+    walletAddress: "https://wallet.multiversx.com",
+    chainId: "1",
   }
 };
 
 export function MultiversXProvider({ children }: PropsWithChildren) {
   const networkConfig = {
-    ...networkConfigs.devnet,
+    ...networkConfigs.mainnet,
     apiTimeout: 10000,
-    walletConnectV2ProjectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+    walletConnectV2ProjectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
+    walletConnectV2RelayAddress: "wss://relay.walletconnect.com",
+    nativeAuth: true
   };
 
+  console.log('MultiversX Provider Config:', {
+    projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
+    relayAddress: networkConfig.walletConnectV2RelayAddress
+  });
+
   if (!process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID) {
-    console.error('WalletConnect Project ID is not configured. Please add NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID to your environment variables.');
+    console.error('WalletConnect Project ID is not configured. Please check your .env.local file.');
   }
 
   return (
     <DappProvider
-      environment="devnet"
+      environment="mainnet"
       customNetworkConfig={networkConfig}
+      dappConfig={{
+        shouldUseWebViewProvider: true,
+        logoutRoute: '/'
+      }}
     >
       {children}
       <TransactionsToastList />

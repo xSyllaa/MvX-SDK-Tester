@@ -4,16 +4,29 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Wallet, X } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { useState } from "react";
 import { WalletConnectLoginButton } from "@multiversx/sdk-dapp/UI";
 import { XPortalLogo } from "@/components/icons/xportal-logo";
+import type { WalletConnectLoginButtonPropsType } from '@multiversx/sdk-dapp/UI';
 
 export function ConnectWallet() {
   const [isOpen, setIsOpen] = useState(false);
   const callbackRoute = "/";
+
+  const commonProps: WalletConnectLoginButtonPropsType = {
+    callbackRoute,
+    nativeAuth: true,
+    onLoginRedirect: () => {
+      console.log('Login redirect called');
+      setIsOpen(false);
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -22,90 +35,126 @@ export function ConnectWallet() {
           <Wallet className="h-5 w-5" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="p-0 bg-[#18191D]">
-        <div className="flex flex-col h-full">
-          {/* Header avec titre */}
-          <div className="p-4 flex justify-between items-center border-b border-zinc-800">
-            <h2 className="text-lg font-medium text-white">Connect your wallet</h2>
+      <DialogContent className="sm:max-w-[425px] p-0 gap-0">
+        <DialogHeader className="p-4 border-b">
+          <div>
+            <DialogTitle className="text-lg font-medium">Connect your wallet</DialogTitle>
+            <DialogDescription className="text-sm mt-1">
+              Choose your preferred wallet to connect to our app
+            </DialogDescription>
           </div>
+        </DialogHeader>
 
+        <div className="flex flex-col gap-4 p-4">
           {/* xPortal Section */}
-          <div className="p-5 rounded-lg bg-[#25262C] mx-4 mb-4">
-            <div className="flex mb-5">
-              <div className="min-w-[48px] mr-4">
-                <div className="w-[130px] h-[26px] flex items-center justify-center">
-                  <XPortalLogo width={130} height={26} />
-                </div>
+          <div className="p-5 rounded-lg bg-card">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <XPortalLogo width={32} height={32} />
               </div>
-              <div className="flex flex-col justify-center">
-                <h3 className="text-white text-base font-medium">xPortal Mobile Wallet</h3>
-                <p className="text-sm text-gray-400">Scan this QR code with your app</p>
+              <div>
+                <h3 className="font-medium">xPortal Mobile Wallet</h3>
+                <p className="text-sm text-muted-foreground">Scan this QR code with your app</p>
               </div>
             </div>
             
-            <style jsx global>{`
-              .wallet-connect-login-container {
-                width: 100% !important;
-                display: flex !important;
-                justify-content: center !important;
-                padding: 0 !important;
-              }
-              .token-login-wrapper {
-                background-color: transparent !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                display: flex !important;
-                justify-content: center !important;
-                min-height: 180px !important;
-              }
-              .qr-code-svg {
-                background-color: #25262C !important;
-                padding: 16px !important;
-                border-radius: 8px !important;
-                width: 180px !important;
-                height: 180px !important;
-                display: block !important;
-              }
-              .wallet-connect-login-btn {
-                background-color: transparent !important;
-                padding: 0 !important;
-                border: none !important;
-                width: 100% !important;
-                height: auto !important;
-              }
-              .connect-wallet-btn {
-                background: none !important;
-                border: none !important;
-                margin: 0 !important;
-                padding: 0 !important;
-              }
-              .identicon {
-                display: none !important;
-              }
-            `}</style>
-            
             <div className="flex justify-center">
-              <div className="qr-container relative flex justify-center min-h-[180px]">
+              <style jsx global>{`
+                .walletconnect-modal__base {
+                  background: hsl(var(--card)) !important;
+                  color: hsl(var(--foreground)) !important;
+                  border: 1px solid hsl(var(--border)) !important;
+                  border-radius: 0.75rem !important;
+                  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1) !important;
+                }
+                .walletconnect-modal__header p {
+                  color: hsl(var(--foreground)) !important;
+                }
+                .walletconnect-modal__close__wrapper {
+                  background: hsl(var(--muted)) !important;
+                }
+                .walletconnect-modal__mobile__toggle {
+                  background: hsl(var(--accent)) !important;
+                  color: hsl(var(--accent-foreground)) !important;
+                }
+                .walletconnect-qrcode__image {
+                  padding: 20px !important;
+                  background: white !important;
+                  border-radius: 12px !important;
+                }
+                .walletconnect-modal__footer {
+                  color: hsl(var(--muted-foreground)) !important;
+                }
+                .walletconnect-connect__button {
+                  background: hsl(var(--primary)) !important;
+                  color: hsl(var(--primary-foreground)) !important;
+                  border: none !important;
+                  padding: 0.5rem 1rem !important;
+                  border-radius: 0.375rem !important;
+                  font-weight: 500 !important;
+                  transition: opacity 0.2s !important;
+                }
+                .walletconnect-connect__button:hover {
+                  opacity: 0.9 !important;
+                }
+              `}</style>
+              <div className="w-full">
                 <WalletConnectLoginButton
-                  callbackRoute={callbackRoute}
+                  {...commonProps}
                   isWalletConnectV2={true}
-                  loginButtonText=""
-                  className="wallet-connect-login-btn"
+                  loginButtonText="Connect with xPortal"
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2"
                 />
               </div>
             </div>
             
             <div className="flex justify-between items-center mt-4">
-              <p className="text-sm text-gray-400">Don't have the xPortal App?</p>
+              <p className="text-sm text-muted-foreground">Don't have the xPortal App?</p>
               <a 
                 href="https://xportal.com" 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                className="text-[#14DFBE] hover:text-[#0fcaa9] text-sm font-medium"
+                className="text-primary hover:text-primary/90 text-sm font-medium"
               >
                 Get xPortal
               </a>
             </div>
+          </div>
+
+          {/* MultiversX Extension Section */}
+          <div className="p-4 rounded-lg bg-card flex items-center">
+            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mr-4">
+              <XPortalLogo width={32} height={32} />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-medium">MultiversX Wallet Extension</h3>
+              <p className="text-sm text-muted-foreground">Connect using browser wallet extension</p>
+            </div>
+          </div>
+
+          {/* Ledger Section */}
+          <div className="p-4 rounded-lg bg-card flex items-center">
+            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mr-4">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19.5 8.25V15.75H4.5V8.25M19.5 8.25H4.5M19.5 8.25V6.75C19.5 5.92157 18.8284 5.25 18 5.25H6C5.17157 5.25 4.5 5.92157 4.5 6.75V8.25M19.5 15.75V17.25C19.5 18.0784 18.8284 18.75 18 18.75H6C5.17157 18.75 4.5 18.0784 4.5 17.25V15.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="font-medium">Ledger</h3>
+              <p className="text-sm text-muted-foreground">Connect using Ledger hardware wallet</p>
+            </div>
+          </div>
+
+          <div className="mt-2 text-center">
+            <p className="text-sm text-muted-foreground">Don't have a wallet?</p>
+            <a 
+              href="https://chrome.google.com/webstore/detail/multiversx-defi-wallet/dngmlblcodfobpdpecaadgfbcggfjfnm"
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:text-primary/90 text-sm font-medium"
+            >
+              Get MultiversX Wallet Extension ↗
+            </a>
           </div>
         </div>
       </DialogContent>
