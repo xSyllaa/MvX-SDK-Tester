@@ -2,12 +2,12 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
 
 // Vérifier que la clé API est présente
-if (!process.env.GOOGLE_AI_API_KEY) {
-  throw new Error('GOOGLE_AI_API_KEY is not defined in environment variables');
+if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  throw new Error('GOOGLE_GENERATIVE_AI_API_KEY is not defined in environment variables');
 }
 
 // Initialiser l'API Google AI côté serveur avec la version gratuite
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 
 // Configuration du modèle pour la version gratuite
 const modelConfig = {
