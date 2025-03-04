@@ -6,7 +6,6 @@ import { RepoStats } from "@/components/repo/RepoStats"
 import { FileTree } from "@/components/repo/FileTree"
 import { FileContent } from "@/components/repo/FileContent"
 import { useRepoData } from "@/components/repo/RepoDataProvider"
-import { EndpointsTester } from "@/components/repo/EndpointsTester"
 import { EndpointTesterV2 } from "@/components/repo/EndpointTesterV2"
 import { ChatInterface } from "@/components/chat/ChatInterface"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -30,7 +29,7 @@ function FileContentWrapper() {
   if (!selectedFile || selectedFile.type !== 'file') {
     return (
       <div className="border rounded-md overflow-hidden bg-background p-4 flex items-center justify-center h-[500px]">
-        <p className="text-muted-foreground">Sélectionnez un fichier pour afficher son contenu</p>
+        <p className="text-muted-foreground">Select a file to view its content</p>
       </div>
     );
   }
@@ -221,25 +220,12 @@ export default function AnalyzerPage() {
             </div>
           </div>
           
-          {/* Testeur d'endpoints avec choix de version */}
+          {/* Endpoint Tester */}
           <div className="mt-6">
-            <Tabs defaultValue="v2" className="w-full">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Testeur d'Endpoints</h2>
-                <TabsList>
-                  <TabsTrigger value="v1">Version Standard</TabsTrigger>
-                  <TabsTrigger value="v2">Explorateur</TabsTrigger>
-                </TabsList>
-              </div>
-              
-              <TabsContent value="v1">
-                <EndpointsTester />
-              </TabsContent>
-              
-              <TabsContent value="v2">
-                <EndpointTesterV2 />
-              </TabsContent>
-            </Tabs>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Endpoint Explorer</h2>
+            </div>
+            <EndpointTesterV2 />
           </div>
 
           {/* Chat Assistant */}

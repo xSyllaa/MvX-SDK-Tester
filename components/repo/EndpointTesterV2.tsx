@@ -34,12 +34,12 @@ type RequestParam = {
   description?: string
 }
 
-// Hook personnalisé pour détecter les endpoints
+// Custom hook to detect endpoints
 function useEndpointDetection(fileContent: string, filePath: string) {
   const [endpoints, setEndpoints] = useState<Endpoint[]>([])
   const [fileLanguage, setFileLanguage] = useState<string>("unknown")
   
-  // Détecter le langage du fichier
+  // Detect file language
   useEffect(() => {
     if (filePath) {
       const language = getLanguageModeForFile(filePath)
@@ -47,7 +47,7 @@ function useEndpointDetection(fileContent: string, filePath: string) {
     }
   }, [filePath])
   
-  // Détecter les endpoints
+  // Detect endpoints
   useEffect(() => {
     if (fileContent && filePath) {
       const detectedEndpoints = findEndpointsInFile(fileContent, filePath, fileLanguage)
@@ -61,12 +61,12 @@ function useEndpointDetection(fileContent: string, filePath: string) {
   }
 }
 
-// Hook personnalisé pour la sélection des endpoints
+// Custom hook for endpoint selection
 function useEndpointSelection(endpoints: Endpoint[]) {
   const [selectedEndpoint, setSelectedEndpoint] = useState<Endpoint | null>(null)
   const [requestParams, setRequestParams] = useState<RequestParam[]>([])
   
-  // Fonction pour mettre à jour un paramètre
+  // Function to update a parameter
   const updateRequestParam = useCallback((index: number, field: 'name' | 'value', newValue: string) => {
     setRequestParams(prevParams => {
       const newParams = [...prevParams]
@@ -75,18 +75,18 @@ function useEndpointSelection(endpoints: Endpoint[]) {
     })
   }, [])
   
-  // Sélection d'un endpoint
+  // Endpoint selection
   const handleEndpointSelection = useCallback((value: string) => {
     const [method, ...pathParts] = value.split("-")
     const path = pathParts.join("-")
     const endpointBasic = { method, path } as Endpoint
     
-    // Trouver l'endpoint complet avec ses métadonnées
+    // Find the complete endpoint with its metadata
     const fullEndpoint = endpoints.find(e => e.method === method && e.path === path) || endpointBasic
     
     setSelectedEndpoint(fullEndpoint)
     
-    // Générer des paramètres suggérés qui incluent les variables de chemin
+    // Generate suggested parameters including path variables
     const suggestedParams = generateSuggestedParams(fullEndpoint)
     setRequestParams(suggestedParams)
   }, [endpoints])
@@ -99,13 +99,13 @@ function useEndpointSelection(endpoints: Endpoint[]) {
   }
 }
 
-// Fonction pour déterminer les endpoints en fonction du langage et du contenu du fichier
+// Function to determine endpoints based on language and file content
 const findEndpointsInFile = (content: string, path: string, language: string): Endpoint[] => {
   const detectedEndpoints: Endpoint[] = []
   
-  // Vérifier si c'est un fichier de routes NextJS
+  // Check if it's a NextJS routes file
   if (path.includes("/app/api/") || path.includes("/pages/api/")) {
-    // Chercher les définitions de routes dans les fichiers API NextJS
+    // Look for route definitions in NextJS API files
     const httpMethods = ["GET", "POST", "PUT", "DELETE", "PATCH"]
     
     for (const method of httpMethods) {
@@ -124,7 +124,7 @@ const findEndpointsInFile = (content: string, path: string, language: string): E
       }
     }
     
-    // Si c'est un fichier 'route.js/ts', chercher les méthodes handler
+    // If it's a 'route.js/ts' file, look for handler methods
     if (path.includes("/route.")) {
       const routePath = path.replace(/\.(js|ts)x?$/, "")
         .replace(/\/route$/, "")
@@ -143,11 +143,11 @@ const findEndpointsInFile = (content: string, path: string, language: string): E
     }
   }
   
-  // Détection spécifique pour TypeScript/JavaScript (SDK ou autres APIs)
+  // Specific detection for TypeScript/JavaScript (SDK or other APIs)
   if (language === "typescript" || language === "javascript") {
-    // Fonction pour extraire les commentaires JSDoc pour une méthode
+    // Function to extract JSDoc comments for a method
     const extractJSDocComment = (methodIndex: number): { description: string, params: Record<string, string>, returns: string } => {
-      // Chercher le commentaire JSDoc qui précède la méthode
+      // Look for JSDoc comment preceding the method
       const beforeMethod = content.substring(0, methodIndex);
       const commentEndIndex = beforeMethod.lastIndexOf('*/');
       
@@ -163,13 +163,13 @@ const findEndpointsInFile = (content: string, path: string, language: string): E
       
       const jsdocComment = beforeMethod.substring(commentStartIndex, commentEndIndex + 2);
       
-      // Extraire la description principale
+      // Extract main description
       const mainDescriptionMatch = jsdocComment.match(/\/\*\*\s*([\s\S]*?)(?:\s*@|\s*\*\/)/);
       const mainDescription = mainDescriptionMatch 
         ? mainDescriptionMatch[1].replace(/^\s*\*\s*/gm, '').trim() 
         : '';
       
-      // Extraire les paramètres
+      // Extract parameters
       const paramRegex = /@param\s+\{[^}]*\}\s+(\w+)\s+-\s+([\s\S]*?)(?=\s*@|\s*\*\/)/g;
       const params: Record<string, string> = {};
       let paramMatch;
@@ -180,7 +180,7 @@ const findEndpointsInFile = (content: string, path: string, language: string): E
         params[paramName] = paramDescription;
       }
       
-      // Extraire la valeur de retour
+      // Extract return value
       const returnsMatch = jsdocComment.match(/@returns\s+\{[^}]*\}\s+([\s\S]*?)(?=\s*@|\s*\*\/)/);
       const returns = returnsMatch 
         ? returnsMatch[1].replace(/^\s*\*\s*/gm, '').trim() 
@@ -189,7 +189,7 @@ const findEndpointsInFile = (content: string, path: string, language: string): E
       return { description: mainDescription, params, returns };
     };
 
-    // Recherche de méthodes qui font des appels API
+    // Search for methods that make API calls
     const apiMethodRegex = /(?:public|private)?\s+(\w+)\s*=\s*async\s*\(\s*([^)]*)\)\s*(?::\s*Promise<[^>]+>)?\s*=>\s*\{[\s\S]*?(?:this\.api\.fetchWithTimeout|fetch)\s*<[^>]*>\s*\(\s*['"`](\/[^'"`]+)['"`]/g;
     
     let match;
@@ -198,17 +198,17 @@ const findEndpointsInFile = (content: string, path: string, language: string): E
       const parameters = match[2];
       let endpoint = match[3];
       
-      // Extraire les commentaires JSDoc
+      // Extract JSDoc comments
       const jsdoc = extractJSDocComment(match.index);
       
-      // Déterminer la méthode HTTP en fonction du nom de la méthode
+      // Determine HTTP method based on method name
       let httpMethod = "GET";
       if (methodName.toLowerCase().includes('post')) httpMethod = "POST";
       else if (methodName.toLowerCase().includes('put')) httpMethod = "PUT";
       else if (methodName.toLowerCase().includes('delete')) httpMethod = "DELETE";
       else if (methodName.toLowerCase().includes('patch')) httpMethod = "PATCH";
       
-      // Ajouter l'endpoint détecté
+      // Add detected endpoint
       detectedEndpoints.push({
         path: endpoint,
         method: httpMethod,
@@ -221,22 +221,22 @@ const findEndpointsInFile = (content: string, path: string, language: string): E
       });
     }
     
-    // Détection pour les modules SDK (comme XOXNO)
+    // Detection for SDK modules (like XOXNO)
     if (content.includes('XOXNOClient') || path.includes('xoxno') || path.includes('XOXNO')) {
-      // Recherche des méthodes d'API spécifiques
+      // Search for specific API methods
       const xoxnoMethodRegex = /(?:public|private)?\s+(\w+)\s*=?\s*(?:async)?\s*\(([^)]*)\)/g;
       
       while ((match = xoxnoMethodRegex.exec(content)) !== null) {
         const methodName = match[1];
         const parameters = match[2];
         
-        // Ignorer les constructeurs et méthodes privées/internes
+        // Ignore constructors and private/internal methods
         if (methodName === 'constructor' || methodName.startsWith('_')) continue;
         
-        // Extraire les commentaires JSDoc
+        // Extract JSDoc comments
         const jsdoc = extractJSDocComment(match.index);
         
-        // Déterminer le chemin d'endpoint en fonction du module et de la méthode
+        // Determine endpoint path based on module and method
         let endpoint = '';
         if (path.includes('NFTModule') || path.toLowerCase().includes('nft')) {
           if (methodName === 'getDailyTrending') {
@@ -252,9 +252,9 @@ const findEndpointsInFile = (content: string, path: string, language: string): E
           }
         }
         
-        // Si un endpoint a été déterminé, l'ajouter à la liste
+        // If an endpoint was determined, add it to the list
         if (endpoint) {
-          // Extraire les variables de chemin de l'endpoint
+          // Extract path variables from the endpoint
           const pathVariables = [];
           const pathVarRegex = /\$\{([^}]+)\}/g;
           let pathVarMatch;
@@ -278,27 +278,25 @@ const findEndpointsInFile = (content: string, path: string, language: string): E
     }
   }
   
-  // Possibilité d'ajouter d'autres détecteurs spécifiques au langage ici
-  
   return detectedEndpoints
 }
 
-// Fonction utilitaire pour obtenir le numéro de ligne à partir d'un index dans le texte
+// Utility function to get line number from text index
 const getLineNumber = (text: string, index: number): number => {
   return text.substring(0, index).split('\n').length;
 };
 
-// Fonction pour générer des paramètres suggérés à partir d'un endpoint
+// Function to generate suggested parameters from an endpoint
 const generateSuggestedParams = (endpoint: Endpoint): RequestParam[] => {
   const params: RequestParam[] = [];
   
-  // Ajouter d'abord les variables de chemin comme paramètres
+  // First add path variables as parameters
   if (endpoint.pathVariables && endpoint.pathVariables.length > 0) {
     for (const varName of endpoint.pathVariables) {
-      // Détecter le type du paramètre
+      // Detect parameter type
       const paramType = detectParameterType(varName);
       
-      // Utiliser la description JSDoc si disponible
+      // Use JSDoc description if available
       const jsdocParamDescription = endpoint.jsdocParams?.[varName];
       
       params.push({ 
@@ -307,16 +305,16 @@ const generateSuggestedParams = (endpoint: Endpoint): RequestParam[] => {
         required: true,
         isPathVariable: true,
         type: paramType,
-        description: jsdocParamDescription || `Variable de chemin for ${varName}`
+        description: jsdocParamDescription || `Path variable for ${varName}`
       });
     }
   }
   
-  // Si c'est un SDK endpoint et qu'il a des paramètres déterminés
+  // If it's a SDK endpoint and has determined parameters
   if (endpoint.params && endpoint.params.length > 0) {
     for (const param of endpoint.params) {
       if (param !== 'this' && param !== 'args' && !param.includes('{')) {
-        // Vérifier si ce paramètre n'est pas déjà dans la liste (pour éviter les doublons)
+        // Check if this parameter isn't already in the list (to avoid duplicates)
         if (!params.some(p => p.name === param)) {
           const paramType = detectParameterType(param);
           
@@ -331,12 +329,12 @@ const generateSuggestedParams = (endpoint: Endpoint): RequestParam[] => {
     }
   }
   
-  // Ajouter des paramètres courants selon l'URL
+  // Add common parameters based on URL
   if (endpoint.path.includes('?')) {
-    // Extraire les paramètres déjà dans l'URL
+    // Extract parameters already in URL
     const urlParams = new URLSearchParams(endpoint.path.split('?')[1]);
     urlParams.forEach((value, key) => {
-      // Éviter les doublons avec les variables de chemin
+      // Avoid duplicates with path variables
       if (!params.some(p => p.name === key)) {
         const paramType = detectParameterType(key);
         
@@ -350,7 +348,7 @@ const generateSuggestedParams = (endpoint: Endpoint): RequestParam[] => {
     });
   }
   
-  // Ajouter des paramètres suggérés selon le type d'endpoint
+  // Add suggested parameters based on endpoint type
   if (endpoint.path.includes('/query') || endpoint.path.includes('/search')) {
     if (!params.some(p => p.name === 'top')) {
       params.push({ 
@@ -358,7 +356,7 @@ const generateSuggestedParams = (endpoint: Endpoint): RequestParam[] => {
         value: '10', 
         required: true,
         type: 'number',
-        description: 'Nombre maximum d\'éléments à retourner'
+        description: 'Maximum number of items to return'
       });
     }
     if (!params.some(p => p.name === 'skip')) {
@@ -367,46 +365,46 @@ const generateSuggestedParams = (endpoint: Endpoint): RequestParam[] => {
         value: '0', 
         required: true,
         type: 'number',
-        description: 'Nombre d\'éléments à ignorer (pagination)'
+        description: 'Number of items to skip (pagination)'
       });
     }
   }
   
-  // Analyser le nom de la méthode pour identifier des paramètres supplémentaires pertinents
+  // Analyze method name to identify additional relevant parameters
   if (endpoint.description) {
     const methodName = endpoint.description.match(/SDK Method: (\w+)/)?.[1]?.toLowerCase();
     
     if (methodName) {
-      // Méthodes liées aux collections
+      // Collection-related methods
       if (methodName.includes('collection') && !params.some(p => p.name === 'collection')) {
         params.push({
           name: 'collection',
           value: '',
           required: true,
           type: 'string',
-          description: 'Identifiant de la collection'
+          description: 'Collection identifier'
         });
       }
       
-      // Méthodes liées aux utilisateurs
+      // User-related methods
       if (methodName.includes('user') && !params.some(p => p.name === 'userId')) {
         params.push({
           name: 'userId',
           value: '',
           required: true,
           type: 'id',
-          description: 'Identifiant de l\'utilisateur'
+          description: 'User identifier'
         });
       }
       
-      // Méthodes liées aux NFT
+      // NFT-related methods
       if (methodName.includes('nft') && !params.some(p => p.name === 'identifier')) {
         params.push({
           name: 'identifier',
           value: '',
           required: true,
           type: 'id',
-          description: 'Identifiant du NFT'
+          description: 'NFT identifier'
         });
       }
     }
@@ -441,7 +439,7 @@ function EndpointSelector({ endpoints, selectedValue, onValueChange, onLineSelec
     <div className="mb-4">
       <div className="flex justify-between items-center mb-1">
         <label className="text-sm font-medium block">
-          Sélectionner un endpoint
+          Select an endpoint
         </label>
         <TooltipProvider>
           <Tooltip>
@@ -452,11 +450,11 @@ function EndpointSelector({ endpoints, selectedValue, onValueChange, onLineSelec
             </TooltipTrigger>
             <TooltipContent side="left" align="end" className="max-w-sm">
               <div className="space-y-1 text-xs">
-                <p><strong>Type d'endpoint: {endpoints.length > 0 && endpoints[0].path.startsWith('/') ? 'Route API' : 'Méthode SDK'}</strong></p>
+                <p><strong>Endpoint type: {endpoints.length > 0 && endpoints[0].path.startsWith('/') ? 'API Route' : 'SDK Method'}</strong></p>
                 <p>
                   {endpoints.length > 0 && endpoints[0].path.startsWith('/') 
-                    ? "Ce fichier contient des routes API Next.js qui peuvent être appelées directement." 
-                    : "Ce fichier contient des méthodes SDK qui effectuent des appels API."}
+                    ? "This file contains Next.js API routes that can be called directly." 
+                    : "This file contains SDK methods that make API calls."}
                 </p>
               </div>
             </TooltipContent>
@@ -519,7 +517,7 @@ function EndpointSelector({ endpoints, selectedValue, onValueChange, onLineSelec
       {selectedValue && endpoints.find(e => `${e.method}-${e.path}` === selectedValue) && (
         <div className="mt-4 bg-muted/20 p-3 rounded-md border">
           <div className="text-sm mb-2">
-            <span className="text-muted-foreground">Sélectionné: </span>
+            <span className="text-muted-foreground">Selected: </span>
             <span className="font-medium">
               {endpoints.find(e => `${e.method}-${e.path}` === selectedValue)?.path}
             </span>
@@ -556,10 +554,10 @@ function ParametersEditor({ params, updateParam }: {
 }) {
   return (
     <div className="mb-4">
-      <h3 className="text-sm font-medium mb-2">Paramètres</h3>
+      <h3 className="text-sm font-medium mb-2">Parameters</h3>
       {params.length === 0 ? (
         <div className="text-sm text-muted-foreground p-4 text-center border rounded-md">
-          Aucun paramètre détecté pour cet endpoint
+          No parameters detected for this endpoint
         </div>
       ) : (
         <div className="space-y-4">
@@ -581,7 +579,7 @@ function ParametersEditor({ params, updateParam }: {
                     )}
                   </div>
                   <Input
-                    placeholder="Valeur"
+                    placeholder="Value"
                     value={param.value}
                     onChange={(e) => updateParam(index, 'value', e.target.value)}
                     className={`w-full ${param.isPathVariable ? 'border-cyan-300' : ''}`}
@@ -662,9 +660,9 @@ export function EndpointTesterV2() {
   return (
     <div className="rounded-lg border bg-background shadow-sm">
       <div className="p-4 border-b">
-        <h2 className="text-lg font-semibold">Explorateur d'Endpoints</h2>
+        <h2 className="text-lg font-semibold">Endpoint Explorer</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          {endpoints.length} endpoints trouvés dans le fichier {filePath ? filePath.split('/').pop() : "sélectionné"}
+          {endpoints.length} endpoints found in file {filePath ? filePath.split('/').pop() : "selected"}
         </p>
       </div>
       
@@ -674,8 +672,8 @@ export function EndpointTesterV2() {
             <Code className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground">
               {selectedFile ? 
-                "Aucun endpoint trouvé dans ce fichier. Sélectionnez un fichier contenant des routes API ou des méthodes SDK." : 
-                "Sélectionnez un fichier pour détecter les endpoints"
+                "No endpoints found in this file. Select a file containing API routes or SDK methods." : 
+                "Select a file to detect endpoints"
               }
             </p>
           </div>
@@ -698,7 +696,7 @@ export function EndpointTesterV2() {
             <>
               {/* URL Preview */}
               <div className="mb-4">
-                <h3 className="text-sm font-medium mb-2">URL de l'endpoint</h3>
+                <h3 className="text-sm font-medium mb-2">Endpoint URL</h3>
                 <div className="p-3 bg-muted/20 border rounded-md overflow-x-auto">
                   <code className="text-xs font-mono whitespace-nowrap">
                     <span className="text-blue-600 font-semibold">{selectedEndpoint.method}</span> {selectedEndpoint.path}
