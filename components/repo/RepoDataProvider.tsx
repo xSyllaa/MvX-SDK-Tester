@@ -480,7 +480,21 @@ export function RepoDataProvider({ repoPath, children, preloadedSDK }: RepoDataP
         setRepoMetadata({
           ...metadata,
           totalFiles: stats.files,
-          totalSize: stats.size
+          totalSize: stats.size,
+          name: metadata.name || 'Unknown',
+          fullName: metadata.fullName || 'Unknown/Unknown',
+          description: metadata.description || 'No description available',
+          stars: metadata.stars || 0,
+          forks: metadata.forks || 0,
+          tags: metadata.tags || [],
+          owner: metadata.owner || 'Unknown',
+          repoUrl: metadata.repoUrl || '',
+          isLoading: false,
+          error: null,
+          sdk: {
+            ...metadata.sdk,
+            github_link: metadata.repoUrl || '',
+          }
         })
         
         // Step 7: Find and select README.md if it exists
@@ -519,13 +533,24 @@ export function RepoDataProvider({ repoPath, children, preloadedSDK }: RepoDataP
             size: await calculateRepoSize(),
             structure: await getRepoStructure(),
             readme: await fetchReadmeContent(),
-            last_updated: await getLastUpdateDate()
+            last_updated: await getLastUpdateDate(),
+            github_link: preloadedSDK.github_link
           };
           
           setRepoMetadata({
-            ...repoMetadata,
-            sdk: enrichedSDK,
-            isLoading: false
+            name: repoMetadata?.name || 'Unknown',
+            fullName: repoMetadata?.fullName || 'Unknown/Unknown',
+            description: repoMetadata?.description || 'No description available',
+            stars: repoMetadata?.stars || 0,
+            forks: repoMetadata?.forks || 0,
+            tags: repoMetadata?.tags || [],
+            totalFiles: repoMetadata?.totalFiles || 0,
+            totalSize: repoMetadata?.totalSize || 0,
+            owner: repoMetadata?.owner || 'Unknown',
+            repoUrl: repoMetadata?.repoUrl || '',
+            isLoading: false,
+            error: null,
+            sdk: enrichedSDK
           });
         }
       } catch (error) {
