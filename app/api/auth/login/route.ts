@@ -23,7 +23,10 @@ export async function POST(req: NextRequest) {
 
     // Validation des données
     if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+      return NextResponse.json({ 
+        success: false,
+        message: 'Email and password are required' 
+      }, { status: 400 });
     }
 
     // Vérifier l'identifiant de l'utilisateur (email ou username)
@@ -33,7 +36,11 @@ export async function POST(req: NextRequest) {
     `;
 
     if (users.length === 0) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      console.log(`User not found for identifier: ${email}`);
+      return NextResponse.json({ 
+        success: false,
+        message: 'User not found. Please check your username.' 
+      }, { status: 404 });
     }
 
     const user = users[0];
@@ -46,7 +53,11 @@ export async function POST(req: NextRequest) {
     `;
 
     if (authMethods.length === 0) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      console.log(`No email_password auth method found for user: ${user.id}`);
+      return NextResponse.json({ 
+        success: false,
+        message: 'This account does not use password authentication.' 
+      }, { status: 401 });
     }
 
     const authMethod = authMethods[0];
@@ -55,7 +66,11 @@ export async function POST(req: NextRequest) {
     // Vérifier le mot de passe
     const hashedInputPassword = hashPassword(password);
     if (storedPassword !== hashedInputPassword) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      console.log(`Password mismatch for user: ${user.id}`);
+      return NextResponse.json({ 
+        success: false,
+        message: 'Incorrect password. Please try again.' 
+      }, { status: 401 });
     }
 
     // Créer une session

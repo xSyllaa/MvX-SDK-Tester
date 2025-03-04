@@ -207,79 +207,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Fonction pour la connexion par identifiants
   const loginWithCredentials = async (email: string, password: string) => {
-    if (!isMounted.current) return { success: false };
-    
-    setState(prev => ({...prev, isLoading: true, error: null}));
-    
     try {
-      // Si l'utilisateur est déjà authentifié en anonyme, mettre à niveau le compte
-      if (state.user && state.isAnonymous) {
-        console.log('🔄 [AuthContext] Conversion d\'un compte anonyme en compte complet...');
-        return await upgradeAnonymousAccount('email_password', {
-          email,
-          password
-        });
-      }
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
       
-      // Sinon, connexion normale
+      console.log('Attempting to login with credentials');
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
         credentials: 'include'
       });
 
-      if (!isMounted.current) return { success: false };
-
       const data = await response.json();
       
-      if (data.success) {
-        setState({
-          user: data.user,
-          isAuthenticated: true,
-          isAnonymous: data.user.isAnonymous,
-          isLoading: false,
-          error: null,
-          isInitialized: true
-        });
-        return { success: true };
-      } else {
-        setState(prev => ({
-          ...prev,
-          isLoading: false,
-          error: data.error || 'Invalid credentials'
-        }));
-        return { success: false, error: data.error || 'Invalid credentials' };
+      if (!response.ok) {
+        let errorMessage = data.message || 'Login failed';
+        
+        // Rendre le message d'erreur plus précis
+        if (response.status === 404) {
+          errorMessage = 'User not found. Please check your username.';
+        } else if (response.status === 401) {
+          errorMessage = 'Incorrect password. Please try again.';
+        }
+        
+        console.error('Login error:', errorMessage);
+        setState(prev => ({ ...prev, isLoading: false, error: errorMessage }));
+        return { success: false, error: errorMessage };
       }
-    } catch (error) {
-      if (!isMounted.current) return { success: false };
       
-      console.error('Login error:', error);
-      setState(prev => ({
-        ...prev,
+      setState({
         isLoading: false,
-        error: 'Failed to login'
-      }));
-      return { success: false, error: 'Failed to login' };
+        isAuthenticated: true,
+        isAnonymous: false,
+        user: data.user,
+        error: null,
+        isInitialized: true
+      });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Login error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Connection error';
+      setState(prev => ({ ...prev, isLoading: false, error: errorMessage }));
+      return { success: false, error: errorMessage };
     }
   };
 
   // Fonction pour l'inscription
   const registerWithCredentials = async (email: string, password: string, username?: string, displayName?: string, anonymousToken?: string) => {
-    if (!isMounted.current) return { success: false };
-    
-    setState(prev => ({...prev, isLoading: true, error: null}));
-    
     try {
-      console.log('Starting registration with credentials:', { email, username, displayName, hasAnonymousToken: !!anonymousToken });
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
       
       // Déterminer si nous devons transformer le compte anonyme ou créer un nouveau compte
       const shouldUpgradeAnonymous = !!anonymousToken;
       
       if (shouldUpgradeAnonymous) {
-        console.log('Upgrading anonymous account with token');
+        console.log('Linking anonymous account to new credentials');
         // Mettre à niveau le compte anonyme existant
         const response = await fetch('/api/auth/link-account', {
           method: 'POST',
@@ -302,23 +288,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const result = await response.json();
         
         if (!response.ok) {
-          console.error('Error upgrading anonymous account:', result);
+          let errorMessage = result.message || 'Failed to create account';
+          
+          // Rendre le message d'erreur plus précis
+          if (response.status === 400 && result.message?.includes('already exists')) {
+            errorMessage = 'This username is already taken. Please choose another one.';
+          } else if (response.status === 500) {
+            errorMessage = 'Server error. Please try again later.';
+          }
+          
+          console.error('Account creation error:', errorMessage);
           setState(prev => ({ 
             ...prev, 
             isLoading: false, 
-            error: result.message || 'Failed to upgrade anonymous account' 
+            error: errorMessage
           }));
-          return { success: false, error: result.message };
+          return { success: false, error: errorMessage };
         }
         
-        console.log('Anonymous account upgraded successfully:', result);
-        // Mettre à jour l'état d'authentification avec les nouvelles informations
         setState(prev => ({
           ...prev,
           isLoading: false,
           isAuthenticated: true,
           isAnonymous: false,
-          user: result.user
+          user: result.user,
+          error: null
         }));
         
         return { success: true };
@@ -341,28 +335,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const result = await response.json();
         
         if (!response.ok) {
+          let errorMessage = result.message || 'Failed to register';
+          
+          // Rendre le message d'erreur plus précis
+          if (response.status === 409 || (result.message && result.message.includes('already exists'))) {
+            errorMessage = 'This username is already taken. Please choose another one.';
+          } else if (response.status === 500) {
+            errorMessage = 'Server error. Please try again later.';
+          }
+          
+          console.error('Registration error:', errorMessage);
           setState(prev => ({ 
             ...prev, 
             isLoading: false, 
-            error: result.message || 'Failed to register' 
+            error: errorMessage
           }));
-          return { success: false, error: result.message };
+          return { success: false, error: errorMessage };
         }
         
-        // Mettre à jour l'état d'authentification
         setState(prev => ({
           ...prev,
           isLoading: false,
           isAuthenticated: true,
           isAnonymous: false,
-          user: result.user
+          user: result.user,
+          error: null
         }));
         
         return { success: true };
       }
     } catch (error) {
       console.error('Registration error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Une erreur s\'est produite lors de l\'inscription';
+      const errorMessage = error instanceof Error ? error.message : 'Connection error';
       setState(prev => ({ ...prev, isLoading: false, error: errorMessage }));
       return { success: false, error: errorMessage };
     }

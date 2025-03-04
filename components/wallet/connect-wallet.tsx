@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Wallet, Github, Mail, User, X } from 'lucide-react';
+import { Wallet, Github, Mail, User, Settings, LogOut, X, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { WalletConnectLoginButton } from "@multiversx/sdk-dapp/UI";
 import { XPortalLogo } from "@/components/icons/xportal-logo";
-import { getCookie } from '@/lib/cookies';
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Type pour les props des boutons de connexion
 type WalletConnectLoginButtonPropsType = {
@@ -19,12 +20,15 @@ type WalletConnectLoginButtonPropsType = {
 
 export function ConnectWallet() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const [anonymousToken, setAnonymousToken] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const callbackRoute = '/';
 
@@ -38,14 +42,49 @@ export function ConnectWallet() {
     logout
   } = useAuth();
 
+  // Fonction utilitaire pour récupérer un cookie
+  const getCookieValue = (name: string): string | null => {
+    if (typeof document === 'undefined') {
+      return null;
+    }
+    
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      // Le cookie commence-t-il par le nom que nous recherchons?
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        return decodeURIComponent(cookie.substring(name.length + 1));
+      }
+    }
+    return null;
+  };
+
+  // Mettre à jour le message d'erreur lors du changement d'error
+  useEffect(() => {
+    if (error) {
+      // Traduire les messages d'erreur en messages plus compréhensibles
+      if (error.includes('User with this email or username already exists')) {
+        setErrorMessage('This username is already taken. Please choose another one.');
+      } else {
+        setErrorMessage(error);
+      }
+    } else {
+      setErrorMessage(null);
+    }
+  }, [error]);
+
   // Récupérer le jeton anonyme au chargement du composant
   useEffect(() => {
-    const token = getCookie('anonymousToken');
-    if (token) {
-      setAnonymousToken(token);
-      console.log('Anonymous token found:', token);
-    } else {
-      console.log('No anonymous token found in cookies');
+    try {
+      const token = getCookieValue('anonymousToken');
+      if (token) {
+        setAnonymousToken(token);
+        console.log('Anonymous token found:', token);
+      } else {
+        console.log('No anonymous token found in cookies');
+      }
+    } catch (e) {
+      console.error('Error reading cookies:', e);
     }
   }, []);
 
@@ -72,70 +111,233 @@ export function ConnectWallet() {
 
   const handleCredentialsLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = await loginWithCredentials(identifier, password);
-    if (result.success) {
-      setIdentifier('');
-      setPassword('');
-      setIsOpen(false);
+    setErrorMessage(null);
+    
+    if (!identifier || !password) {
+      setErrorMessage('Please enter both username and password.');
+      return;
+    }
+    
+    try {
+      console.log(`Attempting to login with username: ${identifier}`);
+      const result = await loginWithCredentials(identifier, password);
+      
+      if (result.success) {
+        setIdentifier('');
+        setPassword('');
+        setIsOpen(false);
+      } else if (result.error) {
+        console.error('Login error:', result.error);
+        setErrorMessage(result.error);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setErrorMessage('Connection error. Please try again later.');
     }
   };
 
   const handleCredentialsRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
     
-    // Ajouter le jeton anonyme aux données d'inscription si disponible
-    const registerData = {
-      identifier,
-      password,
-      username,
-      displayName,
-      anonymousToken
-    };
+    if (!identifier || !password) {
+      setErrorMessage('Please enter both username and password.');
+      return;
+    }
     
-    console.log('Registering with data:', registerData);
+    if (password !== confirmPassword) {
+      setErrorMessage('Passwords do not match. Please try again.');
+      return;
+    }
     
-    const result = await registerWithCredentials(
-      identifier, 
-      password, 
-      username, 
-      displayName, 
-      anonymousToken || undefined
-    );
-    
-    if (result.success) {
-      setIdentifier('');
-      setPassword('');
-      setUsername('');
-      setDisplayName('');
-      setIsRegistering(false);
-      setIsOpen(false);
+    try {
+      const result = await registerWithCredentials(identifier, password, identifier, undefined, anonymousToken || undefined);
+      
+      if (result.success) {
+        setIdentifier('');
+        setPassword('');
+        setConfirmPassword('');
+        setIsRegistering(false);
+        setIsOpen(false);
+      } else if (result.error) {
+        console.error('Registration error:', result.error);
+        setErrorMessage(result.error);
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      setErrorMessage('Connection error. Please try again later.');
     }
   };
 
   const toggleRegistration = () => {
     setIsRegistering(!isRegistering);
+    setErrorMessage(null);
+    setIdentifier('');
+    setPassword('');
+    setConfirmPassword('');
   };
 
   const handleLogout = () => {
     logout();
+    setIsAccountOpen(false);
+  };
+  
+  // Fonction pour afficher un message d'erreur formaté
+  const renderErrorMessage = (message: string | null) => {
+    if (!message) return null;
+    
+    return (
+      <div className="flex items-start gap-2 text-[10px] text-red-500 p-2 bg-red-50 rounded border border-red-200 break-words mb-2">
+        <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+        <span>{message}</span>
+      </div>
+    );
+  };
+
+  const renderForm = () => {
+    if (isRegistering) {
+      return (
+        <form onSubmit={handleCredentialsRegister} className="space-y-1.5 mt-1.5 w-full">
+          {renderErrorMessage(errorMessage)}
+          
+          <div className="w-full relative">
+            <input 
+              type="text"
+              placeholder="Username" 
+              className="w-full px-2 py-1.5 border border-border rounded text-xs"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              required
+            />
+          </div>
+          
+          <div className="w-full relative">
+            <input 
+              type={showPassword ? "text" : "password"}
+              placeholder="Password" 
+              className="w-full px-2 py-1.5 border border-border rounded text-xs pr-7"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button 
+              type="button" 
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+            </button>
+          </div>
+          
+          <div className="w-full relative">
+            <input 
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Confirm Password" 
+              className="w-full px-2 py-1.5 border border-border rounded text-xs pr-7"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+            <button 
+              type="button" 
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            >
+              {showConfirmPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+            </button>
+          </div>
+          
+          <div className="flex gap-2">
+            <Button 
+              type="submit" 
+              className="flex-1 h-7 text-[10px]"
+              disabled={isLoading}
+              size="sm"
+            >
+              {isLoading ? 'Registering...' : 'Register'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-7 text-[10px]"
+              size="sm"
+              onClick={toggleRegistration}
+            >
+              Sign in instead
+            </Button>
+          </div>
+        </form>
+      );
+    }
+    
+    return (
+      <form onSubmit={handleCredentialsLogin} className="space-y-1.5 mt-1.5 w-full">
+        {renderErrorMessage(errorMessage)}
+        
+        <div className="w-full relative">
+          <input 
+            type="text" 
+            placeholder="Username" 
+            className="w-full px-2 py-1.5 border border-border rounded text-xs"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            required
+          />
+        </div>
+        
+        <div className="w-full relative">
+          <input 
+            type={showPassword ? "text" : "password"} 
+            placeholder="Password" 
+            className="w-full px-2 py-1.5 border border-border rounded text-xs pr-7"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <button 
+            type="button" 
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            onClick={() => setShowPassword(!showPassword)}
+          >
+            {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+          </button>
+        </div>
+        
+        <div className="flex gap-2">
+          <Button 
+            type="submit" 
+            className="flex-1 h-7 text-[10px]"
+            disabled={isLoading}
+            size="sm"
+          >
+            {isLoading ? 'Signing in...' : 'Sign in'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-7 text-[10px]"
+            size="sm"
+            onClick={toggleRegistration}
+          >
+            Register
+          </Button>
+        </div>
+      </form>
+    );
   };
 
   return (
     <div>
       {isReallyAuthenticated ? (
-        <div className="flex items-center space-x-4">
-          <div className="text-sm font-medium">
-            <span className="text-green-600">{user?.displayName || user?.username}</span>
-          </div>
-          <Button
-            variant="outline"
-            className="px-3 py-2 h-auto"
-            onClick={handleLogout}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Logging out...' : 'Logout'}
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          className="px-3 py-2 h-auto"
+          onClick={() => setIsAccountOpen(true)}
+          disabled={isLoading}
+        >
+          <User className="mr-2 h-4 w-4" />
+          My Account
+        </Button>
       ) : (
         <Button
           variant="outline"
@@ -147,6 +349,66 @@ export function ConnectWallet() {
         </Button>
       )}
 
+      {/* Modal de compte utilisateur */}
+      <Dialog open={isAccountOpen} onOpenChange={setIsAccountOpen}>
+        <DialogContent className="sm:max-w-[380px] max-w-[90vw] w-full p-0 gap-0 max-h-[90vh] overflow-y-auto overflow-x-hidden">
+          <DialogHeader className="p-3 border-b sticky top-0 bg-background z-10">
+            <div>
+              <DialogTitle className="text-base font-medium">My Account</DialogTitle>
+              <DialogDescription className="text-xs mt-0.5">
+                Manage your account settings
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3 p-3 w-full overflow-x-hidden">
+            {/* Info utilisateur */}
+            <div className="p-3 rounded-lg bg-card">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="font-medium">{user?.displayName || user?.username}</h2>
+                    <p className="text-xs text-muted-foreground">{user?.email || 'No email'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Options de compte */}
+            <div className="p-3 rounded-lg bg-card">
+              <h3 className="text-xs font-medium mb-2">Account Options</h3>
+              
+              {/* Ici, vous pourrez ajouter d'autres options de compte selon vos besoins */}
+              <div className="space-y-2">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start h-9 text-xs"
+                  size="sm"
+                >
+                  <Settings className="mr-2 h-3 w-3" />
+                  Account Settings
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start h-9 text-xs text-destructive hover:text-destructive"
+                  size="sm"
+                  onClick={handleLogout}
+                  disabled={isLoading}
+                >
+                  <LogOut className="mr-2 h-3 w-3" />
+                  {isLoading ? 'Logging out...' : 'Logout'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de connexion */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="sm:max-w-[380px] max-w-[90vw] w-full p-0 gap-0 max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader className="p-3 border-b sticky top-0 bg-background z-10">
@@ -337,130 +599,13 @@ export function ConnectWallet() {
               </div>
 
               {/* Identifiant + Mot de passe Section */}
-              <div className="p-3 rounded-lg bg-card w-full">
-                <div className="flex gap-2 mb-2">
-                  <div className="h-6 w-6 shrink-0 rounded-md bg-primary/10 flex items-center justify-center mt-0.5">
-                    <User width={14} height={14} />
-                  </div>
-                  <div className="min-w-0 w-full">
-                    <h3 className="text-xs font-medium truncate">
-                      {isRegistering ? "Register" : "Username + Password"}
-                    </h3>
-                    
-                    {isRegistering ? (
-                      <form onSubmit={handleCredentialsRegister} className="space-y-1.5 mt-1.5 w-full">
-                        {error && (
-                          <div className="text-[10px] text-red-500 p-1.5 bg-red-50 rounded border border-red-200 break-words">
-                            {error}
-                          </div>
-                        )}
-                        
-                        {anonymousToken ? (
-                          <div className="text-[10px] text-green-600 p-1.5 bg-green-50 rounded border border-green-200 mb-2">
-                            Anonymous account detected - your data will be preserved
-                          </div>
-                        ) : (
-                          <div className="text-[10px] text-amber-600 p-1.5 bg-amber-50 rounded border border-amber-200 mb-2">
-                            No anonymous account detected - you'll start fresh
-                          </div>
-                        )}
-                        
-                        <input 
-                          type="text"
-                          placeholder="Email or username" 
-                          className="w-full px-2 py-1.5 border border-border rounded text-xs"
-                          value={identifier}
-                          onChange={(e) => setIdentifier(e.target.value)}
-                          required
-                        />
-                        <input 
-                          type="text"
-                          placeholder="Username (optional)" 
-                          className="w-full px-2 py-1.5 border border-border rounded text-xs"
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value)}
-                        />
-                        <input 
-                          type="text"
-                          placeholder="Display Name (optional)" 
-                          className="w-full px-2 py-1.5 border border-border rounded text-xs"
-                          value={displayName}
-                          onChange={(e) => setDisplayName(e.target.value)}
-                        />
-                        <input 
-                          type="password" 
-                          placeholder="Password" 
-                          className="w-full px-2 py-1.5 border border-border rounded text-xs"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          required
-                        />
-                        <div className="flex gap-2">
-                          <Button 
-                            type="submit" 
-                            className="flex-1 h-7 text-[10px]"
-                            disabled={isLoading}
-                            size="sm"
-                          >
-                            {isLoading ? 'Registering...' : 'Register'}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-7 text-[10px]"
-                            size="sm"
-                            onClick={toggleRegistration}
-                          >
-                            Sign in instead
-                          </Button>
-                        </div>
-                      </form>
-                    ) : (
-                      <form onSubmit={handleCredentialsLogin} className="space-y-1.5 mt-1.5 w-full">
-                        {error && (
-                          <div className="text-[10px] text-red-500 p-1.5 bg-red-50 rounded border border-red-200 break-words">
-                            {error}
-                          </div>
-                        )}
-                        <input 
-                          type="text" 
-                          placeholder="Email or username" 
-                          className="w-full px-2 py-1.5 border border-border rounded text-xs"
-                          value={identifier}
-                          onChange={(e) => setIdentifier(e.target.value)}
-                          required
-                        />
-                        <input 
-                          type="password" 
-                          placeholder="Password" 
-                          className="w-full px-2 py-1.5 border border-border rounded text-xs"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          required
-                        />
-                        <div className="flex gap-2">
-                          <Button 
-                            type="submit" 
-                            className="flex-1 h-7 text-[10px]"
-                            disabled={isLoading}
-                            size="sm"
-                          >
-                            {isLoading ? 'Signing in...' : 'Sign in'}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-7 text-[10px]"
-                            size="sm"
-                            onClick={toggleRegistration}
-                          >
-                            Register
-                          </Button>
-                        </div>
-                      </form>
-                    )}
-                  </div>
-                </div>
+              <div className="rounded-lg border shadow-sm bg-card text-card-foreground p-4">
+                <h3 className="font-medium text-sm flex items-center gap-2 text-white">
+                  <Mail className="h-4 w-4" />
+                  {isRegistering ? "Register" : "Username + Password"}
+                </h3>
+                
+                {renderForm()}
               </div>
             </div>
           </div>

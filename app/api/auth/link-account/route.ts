@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import bcrypt from 'bcryptjs';
+import postgres from 'postgres';
+import { createHash } from 'crypto';
 import { customAlphabet } from 'nanoid';
 import jwt from 'jsonwebtoken';
 
+// Connexion à la base de données Supabase
+const sql = postgres(process.env.DATABASE_URL || '');
+
 // Configurer nanoid pour générer des identifiants
 const nanoid = customAlphabet('1234567890abcdefghijklmnopqrstuvwxyz', 10);
+
+// Fonction pour hacher le mot de passe avec SHA-256 (identique à login/register)
+function hashPassword(password: string): string {
+  return createHash('sha256').update(password).digest('hex');
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,17 +48,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Vérifier que l'utilisateur anonyme existe
-    const anonymousUser = await db.users.findUnique({
-      where: { id: anonymousUserId }
-    });
+    const anonymousUsers = await sql`
+      SELECT * FROM "users" WHERE id = ${anonymousUserId} AND is_anonymous = true
+    `;
 
-    if (!anonymousUser || !anonymousUser.isAnonymous) {
-      console.error('[link-account] Anonymous user not found or not anonymous:', anonymousUser);
+    if (anonymousUsers.length === 0) {
+      console.error('[link-account] Anonymous user not found or not anonymous');
       return NextResponse.json(
         { success: false, message: 'Anonymous user not found' },
         { status: 404 }
       );
     }
+
+    const anonymousUser = anonymousUsers[0];
 
     // Selon la méthode d'authentification, créer ou trouver l'utilisateur non anonyme
     let userId: string;
@@ -67,20 +77,14 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Vérifier si un utilisateur avec cet email existe déjà
-      const existingUser = await db.users.findFirst({
-        where: { 
-          OR: [
-            { email },
-            { username: username || undefined }
-          ],
-          AND: {
-            isAnonymous: false
-          }
-        }
-      });
+      // Vérifier si un utilisateur avec cet email ou username existe déjà
+      const existingUsers = await sql`
+        SELECT * FROM "users" 
+        WHERE (email = ${email} OR username = ${username || ''})
+        AND is_anonymous = false
+      `;
 
-      if (existingUser) {
+      if (existingUsers.length > 0) {
         console.error('[link-account] User with this email or username already exists:', { email, username });
         return NextResponse.json(
           { success: false, message: 'User with this email or username already exists' },
@@ -88,31 +92,30 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Créer un hash du mot de passe
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
+      // Hacher le mot de passe avec SHA-256 (comme dans register)
+      const hashedPassword = hashPassword(password);
 
-      // Utiliser les données de l'utilisateur anonyme pour créer le nouvel utilisateur ou mettre à jour l'existant
-      const updatedUser = await db.users.update({
-        where: { id: anonymousUserId },
-        data: {
-          email,
-          username: username || `user_${nanoid()}`,
-          displayName: displayName || email.split('@')[0],
-          isAnonymous: false,
-          isVerified: false,
-          updatedAt: new Date()
-        }
-      });
+      // Mettre à jour l'utilisateur anonyme pour le convertir en utilisateur complet
+      await sql`
+        UPDATE "users"
+        SET 
+          email = ${email},
+          username = ${username || `user_${nanoid()}`},
+          display_name = ${displayName || email.split('@')[0]},
+          is_anonymous = false,
+          is_verified = false,
+          updated_at = NOW()
+        WHERE id = ${anonymousUserId}
+      `;
       
-      userId = updatedUser.id;
+      userId = anonymousUserId;
       
-      // Créer la méthode d'authentification
-      const authMethodId = await db.auth_methods.findFirst({
-        where: { name: 'email_password' }
-      });
+      // Récupérer l'ID de la méthode d'authentification par email/password
+      const authMethods = await sql`
+        SELECT id FROM "auth_methods" WHERE name = 'email_password'
+      `;
       
-      if (!authMethodId) {
+      if (authMethods.length === 0) {
         console.error('[link-account] Auth method not found:', 'email_password');
         return NextResponse.json(
           { success: false, message: 'Authentication method not found' },
@@ -120,18 +123,29 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      // Créer l'entrée user_auth_methods
-      await db.user_auth_methods.create({
-        data: {
-          userId: userId,
-          authMethodId: authMethodId.id,
-          identifier: email,
-          credential: hashedPassword,
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-      });
+      const authMethodId = authMethods[0].id;
+      
+      // Créer l'entrée user_auth_methods avec le format compatible avec login/register
+      await sql`
+        INSERT INTO "user_auth_methods" (
+          user_id, 
+          auth_method_id, 
+          auth_provider_id, 
+          auth_data, 
+          is_primary,
+          created_at,
+          last_used
+        )
+        VALUES (
+          ${userId}, 
+          ${authMethodId}, 
+          ${email}, 
+          ${JSON.stringify({ password: hashedPassword })}, 
+          true,
+          NOW(),
+          NOW()
+        )
+      `;
       
       console.log('[link-account] User auth method created with email_password');
     } else {
@@ -151,20 +165,11 @@ export async function POST(request: NextRequest) {
     );
     
     // Récupérer les données de l'utilisateur mis à jour
-    const user = await db.users.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        displayName: true,
-        avatarUrl: true,
-        isVerified: true,
-        isAnonymous: true
-      }
-    });
+    const updatedUsers = await sql`
+      SELECT * FROM "users" WHERE id = ${userId}
+    `;
     
-    if (!user) {
+    if (updatedUsers.length === 0) {
       console.error('[link-account] User not found after linking:', userId);
       return NextResponse.json(
         { success: false, message: 'User not found after linking' },
@@ -172,47 +177,80 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    const user = updatedUsers[0];
+    
     // Créer une entrée dans la table account_links pour lier les comptes
-    // (même si dans ce cas, c'est le même ID, mais cela peut être utile si on change l'implémentation plus tard)
-    await db.account_links.create({
-      data: {
-        anonymousUserId,
-        fullUserId: userId,
-        createdAt: new Date()
-      }
+    await sql`
+      INSERT INTO "account_links" (
+        primary_user_id,
+        linked_user_id,
+        created_at,
+        link_type
+      )
+      VALUES (
+        ${userId},
+        ${anonymousUserId},
+        NOW(),
+        'anonymous_upgrade'
+      )
+    `;
+    
+    // Créer une session pour l'utilisateur
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30); // Expire dans 30 jours
+    
+    const ipAddress = request.headers.get('x-forwarded-for') || '';
+    const userAgent = request.headers.get('user-agent') || '';
+    
+    await sql`
+      INSERT INTO "sessions" (
+        user_id,
+        token,
+        expires_at,
+        created_at,
+        ip_address,
+        user_agent
+      )
+      VALUES (
+        ${userId},
+        ${token},
+        ${expiresAt.toISOString()},
+        NOW(),
+        ${ipAddress},
+        ${userAgent}
+      )
+    `;
+    
+    // Créer la réponse avec les informations utilisateur et le token
+    const response = NextResponse.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        displayName: user.display_name,
+        avatarUrl: user.avatar_url,
+        isVerified: user.is_verified,
+        isAnonymous: user.is_anonymous
+      },
+      token,
+      expiresAt: expiresAt.toISOString()
     });
     
-    console.log('[link-account] Account linking successful:', { anonymousUserId, fullUserId: userId });
-    
     // Définir le cookie d'authentification
-    const response = NextResponse.json(
-      { success: true, message: 'Account linked successfully', user, token },
-      { status: 200 }
-    );
-    
-    // Supprimer le cookie anonyme (il sera remplacé par le cookie d'authentification complet)
-    response.cookies.set('anonymousToken', '', {
+    response.cookies.set('auth_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       path: '/',
-      maxAge: 0, // Expiration immédiate
-    });
-    
-    // Définir le cookie d'authentification
-    response.cookies.set('authToken', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60, // 7 jours
+      maxAge: 30 * 24 * 60 * 60 // 30 jours
     });
     
     return response;
   } catch (error) {
-    console.error('[link-account] Error linking account:', error);
+    console.error('[link-account] Error:', error);
     return NextResponse.json(
-      { success: false, message: 'Error linking account' },
+      { success: false, message: 'Failed to link account' },
       { status: 500 }
     );
   }
