@@ -27,10 +27,7 @@ export function MultiversXProvider({ children }: PropsWithChildren) {
     nativeAuth: true
   };
 
-  console.log('MultiversX Provider Config:', {
-    projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
-    relayAddress: networkConfig.walletConnectV2RelayAddress
-  });
+  
 
   if (!process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID) {
     console.error('WalletConnect Project ID is not configured. Please check your .env.local file.');
