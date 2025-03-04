@@ -71,10 +71,10 @@ export default function Home() {
               <AnimatedSection>
                 <div className="space-y-2">
                   <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none">
-                    Analyze SDKs & ABIs with Precision
+                    Analyze MvX SDKs & ABIs with Precision
                   </h1>
                   <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
-                    The ultimate toolkit for developers to inspect, analyze and understand SDKs and ABIs.
+                    The ultimate toolkit for MultiversX developers to inspect, analyze and understand SDKs and ABIs.
                   </p>
                 </div>
               </AnimatedSection>

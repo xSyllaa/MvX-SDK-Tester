@@ -1,5 +1,5 @@
 {
-  "name": "mvx-sdk-tester",
+  "name": "mvxlib",
   "version": "0.1.0",
   "private": true,
   "scripts": {

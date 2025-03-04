@@ -14,8 +14,8 @@ import { MultiversXProvider } from "@/app/providers/dapp-provider"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "MvX SDK Analyzer",
-  description: "Analyze SDKs & ABIs with precision",
+  title: "MvXLib",
+  description: "MultiversX SDK Testing Library",
   generator: 'v0.dev'
 }
 

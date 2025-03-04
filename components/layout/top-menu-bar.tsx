@@ -147,7 +147,7 @@ export function TopMenuBar() {
           {/* Version mobile: titre à gauche, menu à droite */}
           <div className="flex w-full items-center md:hidden">
             <Link href="/" className="font-bold text-xl tracking-tight whitespace-nowrap">
-              MvX SDK Analyzer
+              MvXLib
             </Link>
             <div className="ml-auto flex items-center gap-2">
               <ConnectWallet />
@@ -167,7 +167,7 @@ export function TopMenuBar() {
             {/* 1. Partie gauche - Logo */}
             <div className="flex justify-start">
               <Link href="/" className="font-bold text-xl tracking-tight whitespace-nowrap">
-                MvX SDK Analyzer
+                MvXLib
               </Link>
             </div>
             
