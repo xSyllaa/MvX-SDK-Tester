@@ -10,6 +10,7 @@ import { ChatProvider } from "@/components/chat/chat-provider"
 import { ChatToggle } from "@/components/chat/chat-toggle"
 import { ChatInterface } from "@/components/chat/ChatInterface"
 import { MultiversXProvider } from "@/app/providers/dapp-provider"
+import { Providers } from "@/app/providers"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -27,12 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <Providers>
           <MultiversXProvider>
             <ChatProvider>
               <TooltipProvider>
@@ -50,7 +46,7 @@ export default function RootLayout({
               </TooltipProvider>
             </ChatProvider>
           </MultiversXProvider>
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   )
