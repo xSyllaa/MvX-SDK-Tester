@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ExternalLink, Github } from "lucide-react"
+import { ExternalLink, Github, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { tagCategoryColors, TagCategory, tagCategoryDescriptions, type SDK, sortTagsByPriority } from "@/data/sdkData"
@@ -12,6 +12,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useSdkFavorites } from "@/hooks/useSdkFavorites"
+import { useAuth } from "@/contexts/auth-context"
 
 interface SDKCardProps {
   sdk: SDK
@@ -38,6 +40,8 @@ const getContrastColor = (hexColor: string) => {
 
 export function SDKCard({ sdk, onAnalyze }: SDKCardProps) {
   const router = useRouter()
+  const { user } = useAuth()
+  const { toggleFavorite, isFavorite, sdkList, isToggling } = useSdkFavorites()
 
   const handleAnalyze = () => {
     // Extract the repository name from the GitHub URL and encode it
@@ -49,19 +53,55 @@ export function SDKCard({ sdk, onAnalyze }: SDKCardProps) {
     router.push(`/analyzer/${repoPath}`)
   }
 
+  const favoriteCount = sdkList.find(s => s.sdk_name === sdk.name)?.favorite_count || 0
+
   return (
     <div className="border rounded-lg p-4 lg:p-6 hover:border-primary/20 transition-colors h-full flex flex-col">
       <div className="flex justify-between items-start gap-4 mb-3 lg:mb-4">
         <h3 className="text-base lg:text-lg font-bold">{sdk.name}</h3>
-        <Link
-          href={sdk.github_link}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-muted-foreground hover:text-foreground shrink-0"
-        >
-          <Github className="h-4 w-4 lg:h-5 lg:w-5" />
-          <span className="sr-only">GitHub Repository</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-auto px-2 gap-1.5"
+                  onClick={() => user && toggleFavorite(sdk.name)}
+                  disabled={!user || isToggling(sdk.name)}
+                >
+                  <Heart 
+                    className={`h-4 w-4 ${isFavorite(sdk.name) ? 'fill-current text-red-500' : ''} ${
+                      isToggling(sdk.name) ? 'opacity-50' : ''
+                    }`} 
+                  />
+                  <span className="text-xs font-medium tabular-nums">
+                    {favoriteCount}
+                  </span>
+                  <span className="sr-only">
+                    {isFavorite(sdk.name) ? 'Remove from favorites' : 'Add to favorites'}
+                  </span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">
+                  {favoriteCount} {favoriteCount === 1 ? 'favorite' : 'favorites'}
+                  {!user && ' - Login to favorite'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
+          <Link
+            href={sdk.github_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-muted-foreground hover:text-foreground shrink-0"
+          >
+            <Github className="h-4 w-4 lg:h-5 lg:w-5" />
+            <span className="sr-only">GitHub Repository</span>
+          </Link>
+        </div>
       </div>
 
       <p className="text-muted-foreground text-xs lg:text-sm mb-4">{sdk.description}</p>

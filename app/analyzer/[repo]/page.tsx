@@ -21,6 +21,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Heart, Github } from "lucide-react"
+import Link from "next/link"
+import { useAuth } from "@/contexts/auth-context"
+import { useSdkFavorites } from "@/hooks/useSdkFavorites"
 
 // Composant qui utilise le contexte pour rendre le contenu du fichier
 function FileContentWrapper() {
@@ -176,6 +181,74 @@ function ContextManager({ preloadedSDK }: { preloadedSDK: SDK | null }) {
   return null;
 }
 
+function RepoHeader() {
+  const { repoMetadata } = useRepoData();
+  const { user } = useAuth();
+  const { toggleFavorite, isFavorite, favoriteCounts } = useSdkFavorites();
+  
+  if (!repoMetadata) return null;
+  
+  const favoriteCount = favoriteCounts[repoMetadata.name] || 0;
+  
+  return (
+    <div className="flex flex-col space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">
+            {repoMetadata.name}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {repoMetadata.description}
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={() => user && toggleFavorite(repoMetadata.name)}
+                  disabled={!user}
+                >
+                  <Heart 
+                    className={`h-5 w-5 ${isFavorite(repoMetadata.name) ? 'fill-current text-red-500' : ''}`} 
+                  />
+                  <span className="sr-only">
+                    {isFavorite(repoMetadata.name) ? 'Remove from favorites' : 'Add to favorites'}
+                  </span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">
+                  {favoriteCount} {favoriteCount === 1 ? 'favorite' : 'favorites'}
+                  {!user && ' - Login to favorite'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
+          <Link
+            href={repoMetadata.repoUrl || '#'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center h-10 w-10 rounded-md text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Github className="h-5 w-5" />
+            <span className="sr-only">View on GitHub</span>
+          </Link>
+        </div>
+      </div>
+      
+      <p className="text-muted-foreground">
+        Explore and analyze SDKs to better understand their structure and functionalities.
+      </p>
+    </div>
+  );
+}
+
 export default function AnalyzerPage() {
   const params = useParams();
   const repoPath = decodeURIComponent((params.repo as string).replace(/%2F/g, "/"));
@@ -198,40 +271,31 @@ export default function AnalyzerPage() {
   
   return (
     <main className="container mx-auto py-6 max-w-7xl">
-      <div className="flex flex-col space-y-6">
-        <h1 className="text-3xl font-bold">
-          SDK Analyzer
-        </h1>
+      <RepoDataProvider repoPath={repoPath} preloadedSDK={preloadedSDK}>
+        <ContextManager preloadedSDK={preloadedSDK} />
+        <RepoHeader />
+        <RepoStats />
         
-        <p className="text-muted-foreground">
-          Explore and analyze SDKs to better understand their structure and functionalities.
-        </p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1 h-[500px] flex flex-col">
+            <FileTree />
+          </div>
+          <div className="lg:col-span-2 h-[500px] flex flex-col">
+            <FileContentWrapper />
+          </div>
+        </div>
         
-        <RepoDataProvider repoPath={repoPath} preloadedSDK={preloadedSDK}>
-          <ContextManager preloadedSDK={preloadedSDK} />
-          <RepoStats />
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 h-[500px] flex flex-col">
-              <FileTree />
-            </div>
-            <div className="lg:col-span-2 h-[500px] flex flex-col">
-              <FileContentWrapper />
-            </div>
+        {/* Endpoint Tester */}
+        <div className="mt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Endpoint Explorer</h2>
           </div>
-          
-          {/* Endpoint Tester */}
-          <div className="mt-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Endpoint Explorer</h2>
-            </div>
-            <EndpointTesterV2 />
-          </div>
+          <EndpointTesterV2 />
+        </div>
 
-          {/* Chat Assistant */}
-          <ChatInterface />
-        </RepoDataProvider>
-      </div>
+        {/* Chat Assistant */}
+        <ChatInterface />
+      </RepoDataProvider>
     </main>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, Search, X, Filter, Tag as TagIcon, Check } from "lucide-react"
+import { ArrowLeft, Search, X, Filter, Tag as TagIcon, Check, Heart } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { SDKCard } from "@/components/sdk-card"
 import { sdkList, type SDK, TagCategory, tagCategoryColors, type Tag, tagCategoryPriority } from "@/data/sdkData"
@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch"
 import { getAnalyzerContext, generateFullContext } from "@/data/chat-contexts"
 import { ChatInterface } from "@/components/chat/ChatInterface"
 import { useChat } from '@/components/chat/chat-provider'
+import { useSdkFavorites } from "@/hooks/useSdkFavorites"
 
 // Icônes pour chaque catégorie
 const CategoryIcons: Record<TagCategory, React.ReactNode> = {
@@ -40,6 +41,7 @@ export default function AnalyzerPage() {
   const { cloneRepository, isLoading, error } = useGithubClone()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { favorites, sdkList: sdkFavorites } = useSdkFavorites()
 
   // Générer le contexte au chargement de la page
   useEffect(() => {
@@ -100,8 +102,9 @@ export default function AnalyzerPage() {
     return categoryData ? categoryData.values : []
   }, [tagCategoriesAndValues, activeCategory])
 
-  const filteredSDKs = useMemo(() => {
-    return sdkList.filter(sdk => {
+  const filteredAndSortedSDKs = useMemo(() => {
+    // Filtrer d'abord les SDK
+    const filtered = sdkList.filter(sdk => {
       // Filtre par recherche textuelle
       const matchesSearch = searchQuery === "" || 
         sdk.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -126,8 +129,29 @@ export default function AnalyzerPage() {
       }
 
       return matchesSearch && matchesFilters
-    })
-  }, [searchQuery, activeFilters, isOrMode])
+    });
+
+    // Vérifier si sdkFavorites est défini avant de trier
+    if (!sdkFavorites || sdkFavorites.length === 0) {
+      return filtered;
+    }
+
+    // Trier les SDK par nombre de favoris
+    return filtered.sort((a, b) => {
+      const sdkA = sdkFavorites.find(s => s.sdk_name === a.name);
+      const sdkB = sdkFavorites.find(s => s.sdk_name === b.name);
+      return (sdkB?.favorite_count || 0) - (sdkA?.favorite_count || 0);
+    });
+  }, [searchQuery, activeFilters, isOrMode, sdkFavorites]);
+
+  // Séparer les SDK favoris des autres
+  const favoriteSDKs = useMemo(() => {
+    return filteredAndSortedSDKs.filter(sdk => favorites.includes(sdk.name));
+  }, [filteredAndSortedSDKs, favorites]);
+
+  const otherSDKs = useMemo(() => {
+    return filteredAndSortedSDKs.filter(sdk => !favorites.includes(sdk.name));
+  }, [filteredAndSortedSDKs, favorites]);
 
   const handleAddFilter = (category: TagCategory, value: string) => {
     if (!activeFilters.some(f => f.category === category && f.value === value)) {
@@ -371,18 +395,51 @@ export default function AnalyzerPage() {
           {/* Résultats */}
           <div>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-medium">Results <span className="text-muted-foreground">({filteredSDKs.length})</span></h2>
+              <h2 className="text-lg font-medium">Results <span className="text-muted-foreground">({filteredAndSortedSDKs.length})</span></h2>
             </div>
 
-            {filteredSDKs.length > 0 ? (
-              <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
-                {filteredSDKs.map((sdk) => (
-                  <SDKCard 
-                    key={sdk.name} 
-                    sdk={sdk} 
-                    onAnalyze={() => handleAnalyze(sdk)}
-                  />
-                ))}
+            {filteredAndSortedSDKs.length > 0 ? (
+              <div className="space-y-8">
+                {/* Section des favoris */}
+                {favoriteSDKs.length > 0 && (
+                  <div>
+                    <h3 className="text-base font-medium mb-4 flex items-center gap-2">
+                      <Heart className="h-4 w-4 fill-current text-red-500" />
+                      My Favorites
+                      <span className="text-muted-foreground">({favoriteSDKs.length})</span>
+                    </h3>
+                    <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+                      {favoriteSDKs.map((sdk) => (
+                        <SDKCard 
+                          key={sdk.name} 
+                          sdk={sdk} 
+                          onAnalyze={() => handleAnalyze(sdk)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Section des autres SDK */}
+                {otherSDKs.length > 0 && (
+                  <div>
+                    {favoriteSDKs.length > 0 && (
+                      <h3 className="text-base font-medium mb-4">
+                        All SDKs
+                        <span className="text-muted-foreground ml-2">({otherSDKs.length})</span>
+                      </h3>
+                    )}
+                    <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+                      {otherSDKs.map((sdk) => (
+                        <SDKCard 
+                          key={sdk.name} 
+                          sdk={sdk} 
+                          onAnalyze={() => handleAnalyze(sdk)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="border rounded-lg p-8 text-center">

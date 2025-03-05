@@ -93,7 +93,6 @@ export function ConnectWallet() {
     nativeAuth: true,
     onLoginRedirect: () => {
       console.log('Login redirect called');
-      setIsOpen(false);
     }
   };
 
@@ -187,8 +186,8 @@ export function ConnectWallet() {
     if (!message) return null;
     
     return (
-      <div className="flex items-start gap-2 text-[10px] text-red-500 p-2 bg-red-50 rounded border border-red-200 break-words mb-2">
-        <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+      <div className="flex items-start gap-2 text-sm text-destructive p-3 bg-destructive/10 rounded-lg border border-destructive/20 break-words">
+        <AlertCircle className="h-5 w-5 mt-0.5 shrink-0" />
         <span>{message}</span>
       </div>
     );
@@ -196,15 +195,18 @@ export function ConnectWallet() {
 
   const renderForm = () => {
     if (isRegistering) {
+      const passwordsMatch = password === confirmPassword;
+      const showPasswordValidation = confirmPassword.length > 0;
+      
       return (
-        <form onSubmit={handleCredentialsRegister} className="space-y-1.5 mt-1.5 w-full">
+        <form onSubmit={handleCredentialsRegister} className="flex flex-col gap-3 w-full">
           {renderErrorMessage(errorMessage)}
           
           <div className="w-full relative">
             <input 
               type="text"
               placeholder="Username" 
-              className="w-full px-2 py-1.5 border border-border rounded text-xs"
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-background/50"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               required
@@ -215,17 +217,17 @@ export function ConnectWallet() {
             <input 
               type={showPassword ? "text" : "password"}
               placeholder="Password" 
-              className="w-full px-2 py-1.5 border border-border rounded text-xs pr-7"
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-background/50 pr-9"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
             <button 
               type="button" 
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               onClick={() => setShowPassword(!showPassword)}
             >
-              {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
           
@@ -233,34 +235,43 @@ export function ConnectWallet() {
             <input 
               type={showConfirmPassword ? "text" : "password"}
               placeholder="Confirm Password" 
-              className="w-full px-2 py-1.5 border border-border rounded text-xs pr-7"
+              className={`w-full px-3 py-2 border rounded-lg text-sm bg-background/50 pr-9 transition-colors ${
+                showPasswordValidation 
+                  ? passwordsMatch 
+                    ? "border-green-500 focus:border-green-500" 
+                    : "border-red-500 focus:border-red-500"
+                  : "border-border"
+              }`}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
             />
             <button 
               type="button" 
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
             >
-              {showConfirmPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
+            {showPasswordValidation && (
+              <p className={`text-xs mt-1 ${passwordsMatch ? "text-green-500" : "text-red-500"}`}>
+                {passwordsMatch ? "Passwords match ✓" : "Passwords do not match"}
+              </p>
+            )}
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-3 mt-1">
             <Button 
               type="submit" 
-              className="flex-1 h-7 text-[10px]"
+              className="flex-1 h-10 text-sm"
               disabled={isLoading}
-              size="sm"
             >
-              {isLoading ? 'Registering...' : 'Register'}
+              {isLoading ? 'Registering...' : 'Create account'}
             </Button>
             <Button
               type="button"
               variant="outline"
-              className="h-7 text-[10px]"
-              size="sm"
+              className="h-10 text-sm"
               onClick={toggleRegistration}
             >
               Sign in instead
@@ -271,14 +282,14 @@ export function ConnectWallet() {
     }
     
     return (
-      <form onSubmit={handleCredentialsLogin} className="space-y-1.5 mt-1.5 w-full">
+      <form onSubmit={handleCredentialsLogin} className="flex flex-col gap-3 w-full">
         {renderErrorMessage(errorMessage)}
         
         <div className="w-full relative">
           <input 
             type="text" 
             placeholder="Username" 
-            className="w-full px-2 py-1.5 border border-border rounded text-xs"
+            className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-background/50"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             required
@@ -289,37 +300,35 @@ export function ConnectWallet() {
           <input 
             type={showPassword ? "text" : "password"} 
             placeholder="Password" 
-            className="w-full px-2 py-1.5 border border-border rounded text-xs pr-7"
+            className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-background/50 pr-9"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
           <button 
             type="button" 
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             onClick={() => setShowPassword(!showPassword)}
           >
-            {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-3 mt-1">
           <Button 
             type="submit" 
-            className="flex-1 h-7 text-[10px]"
+            className="flex-1 h-10 text-sm"
             disabled={isLoading}
-            size="sm"
           >
             {isLoading ? 'Signing in...' : 'Sign in'}
           </Button>
           <Button
             type="button"
             variant="outline"
-            className="h-7 text-[10px]"
-            size="sm"
+            className="h-10 text-sm"
             onClick={toggleRegistration}
           >
-            Register
+            Create account
           </Button>
         </div>
       </form>
@@ -410,30 +419,30 @@ export function ConnectWallet() {
 
       {/* Modal de connexion */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[380px] max-w-[90vw] w-full p-0 gap-0 max-h-[90vh] overflow-y-auto overflow-x-hidden">
-          <DialogHeader className="p-3 border-b sticky top-0 bg-background z-10">
+        <DialogContent className="sm:max-w-[420px] max-w-[90vw] w-full p-0 gap-0 max-h-[90vh] overflow-y-auto overflow-x-hidden">
+          <DialogHeader className="p-4 border-b sticky top-0 bg-background z-10">
             <div>
-              <DialogTitle className="text-base font-medium">Connect your wallet</DialogTitle>
-              <DialogDescription className="text-xs mt-0.5">
-                Choose your preferred wallet to connect to our app
+              <DialogTitle className="text-lg font-semibold">Connect your wallet</DialogTitle>
+              <DialogDescription className="text-sm mt-1">
+                Choose your preferred method to connect to our app
               </DialogDescription>
             </div>
           </DialogHeader>
 
-          <div className="flex flex-col gap-3 p-3 w-full overflow-x-hidden">
+          <div className="flex flex-col gap-4 p-4 w-full overflow-x-hidden">
             {/* xPortal Section */}
-            <div className="p-3 rounded-lg bg-card w-full">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="h-8 w-8 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <XPortalLogo width={18} height={18} />
+            <div className="p-4 rounded-xl bg-gradient-to-br from-card to-card/80 border shadow-sm">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-10 w-10 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <XPortalLogo width={24} height={24} />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-sm font-medium truncate">xPortal Mobile Wallet</h3>
-                  <p className="text-xs text-muted-foreground">Scan QR code with app</p>
+                  <h3 className="text-base font-semibold truncate">xPortal Mobile Wallet</h3>
+                  <p className="text-sm text-muted-foreground">Scan QR code with app</p>
                 </div>
               </div>
               
-              <div className="flex justify-center">
+              <div className="flex justify-center w-full max-w-[280px] mx-auto">
                 <style jsx global>{`
                   /* Style global pour la modal WalletConnect */
                   .walletconnect-modal__base {
@@ -441,88 +450,202 @@ export function ConnectWallet() {
                     color: hsl(var(--foreground)) !important;
                     max-width: 100% !important;
                     width: 100% !important;
-                    padding: 0 !important;
-                    overflow: hidden !important;
-                    box-sizing: border-box !important;
+                    padding: 24px !important;
+                    border-radius: 1rem !important;
+                    border: 1px solid hsl(var(--border)) !important;
+                    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1) !important;
+                    position: relative !important;
+                    z-index: 100 !important;
                   }
 
-                  /* Forcer le texte à être lisible */
+                  /* Overlay de la modal */
+                  #walletconnect-wrapper {
+                    background: rgba(0, 0, 0, 0.5) !important;
+                    backdrop-filter: blur(4px) !important;
+                    z-index: 99 !important;
+                    position: fixed !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    right: 0 !important;
+                    bottom: 0 !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                  }
+
+                  /* Style du header */
+                  .walletconnect-modal__header {
+                    padding: 0 !important;
+                    margin-bottom: 24px !important;
+                    user-select: text !important;
+                  }
+
+                  .walletconnect-modal__header p {
+                    color: hsl(var(--foreground)) !important;
+                    font-size: 16px !important;
+                    font-weight: 600 !important;
+                    user-select: text !important;
+                  }
+
+                  /* Style de la zone de QR code */
+                  .walletconnect-qrcode__base {
+                    background: white !important;
+                    padding: 16px !important;
+                    border-radius: 12px !important;
+                    width: fit-content !important;
+                    margin: 0 auto 16px !important;
+                    user-select: text !important;
+                  }
+
+                  .walletconnect-qrcode__text {
+                    color: hsl(var(--foreground)) !important;
+                    font-size: 14px !important;
+                    margin-bottom: 16px !important;
+                    font-weight: 500 !important;
+                    user-select: text !important;
+                  }
+
+                  /* Style du texte et des liens */
                   .walletconnect-modal__base p,
-                  .walletconnect-modal__base h2,
                   .walletconnect-modal__base div {
                     color: hsl(var(--foreground)) !important;
                     font-size: 14px !important;
-                    overflow-wrap: break-word !important;
-                    word-wrap: break-word !important;
+                    user-select: text !important;
                   }
 
-                  /* QR code - sélecteurs généraux pour tous les conteneurs possibles du QR */
-                  .walletconnect-qrcode__image,
-                  .walletconnect-qrcode__base,
-                  #walletconnect-qrcode-modal,
-                  [id*="qrcode"],
-                  [class*="qrcode"] {
-                    background-color: white !important;
-                    margin: 0 auto !important;
-                    border-radius: 12px !important;
-                    padding: 12px !important;
-                    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1) !important;
-                    max-width: 100% !important;
-                    width: auto !important;
-                    box-sizing: border-box !important;
+                  /* Style des liens */
+                  .walletconnect-modal__base a {
+                    color: hsl(var(--primary)) !important;
+                    font-weight: 500 !important;
+                    text-decoration: none !important;
+                    user-select: text !important;
                   }
 
-                  /* QR code image directement */
-                  canvas,
-                  .walletconnect-qrcode__image img,
-                  .walletconnect-qrcode__image canvas,
-                  .walletconnect-qrcode__image svg {
-                    background-color: white !important;
-                    border-radius: 8px !important;
-                    max-width: 100% !important;
-                    height: auto !important;
-                    width: auto !important;
-                    display: block !important;
-                    margin: 0 auto !important;
+                  /* Style du bouton de fermeture */
+                  .walletconnect-modal__close__wrapper {
+                    position: absolute !important;
+                    top: 24px !important;
+                    right: 24px !important;
+                    background: none !important;
+                    width: 24px !important;
+                    height: 24px !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    cursor: pointer !important;
+                    transition: opacity 0.2s !important;
+                    z-index: 101 !important;
                   }
 
-                  /* Contenu en dessous du QR code */
-                  .walletconnect-modal__footer {
-                    background-color: hsl(var(--background)) !important;
-                    color: hsl(var(--foreground)) !important;
-                    padding: 8px !important;
-                    width: 100% !important;
-                    box-sizing: border-box !important;
+                  .walletconnect-modal__close__icon {
+                    width: 16px !important;
+                    height: 16px !important;
+                    opacity: 0.5 !important;
                   }
 
-                  /* Boutons */
+                  .walletconnect-modal__close__wrapper:hover .walletconnect-modal__close__icon {
+                    opacity: 1 !important;
+                  }
+
+                  /* Style des boutons */
                   .walletconnect-connect__buttons__wrapper__android,
                   .walletconnect-connect__buttons__wrapper__wrap {
-                    background-color: hsl(var(--background)) !important;
-                    width: 100% !important;
-                    box-sizing: border-box !important;
+                    background: none !important;
                   }
 
-                  /* Éléments spécifiques au texte informatif */
-                  .walletconnect-modal__mobile__toggle {
-                    color: hsl(var(--primary)) !important;
-                    overflow-wrap: break-word !important;
-                    word-wrap: break-word !important;
+                  .walletconnect-connect__button {
+                    background-color: rgb(24 24 27) !important;
+                    color: white !important;
+                    border-radius: 0.5rem !important;
+                    transition: all 0.2s !important;
+                    border: none !important;
+                    padding: 12px 20px !important;
+                    margin: 8px 0 !important;
+                    user-select: text !important;
                   }
 
-                  /* Texte des liens */
-                  .walletconnect-modal__mobile__toggle a {
-                    color: hsl(var(--primary)) !important;
+                  .walletconnect-connect__button:hover {
+                    background-color: rgb(39 39 42) !important;
                   }
 
-                  /* Bannière inférieure */
+                  /* Style du footer */
+                  .walletconnect-modal__footer {
+                    background: none !important;
+                    border-top: 1px solid hsl(var(--border)) !important;
+                    margin-top: 24px !important;
+                    padding-top: 16px !important;
+                    user-select: text !important;
+                  }
+
+                  /* Style de la bannière */
                   .walletconnect-banner__wrapper,
                   .walletconnect-banner__icon {
-                    background-color: hsl(var(--card)) !important;
-                    color: hsl(var(--card-foreground)) !important;
+                    background: hsl(var(--card)) !important;
+                    border: 1px solid hsl(var(--border)) !important;
                     border-radius: 8px !important;
-                    width: 100% !important;
-                    box-sizing: border-box !important;
+                    padding: 12px !important;
+                    user-select: text !important;
+                  }
+
+                  /* Style du texte mobile */
+                  .walletconnect-modal__mobile__toggle {
+                    color: hsl(var(--foreground)) !important;
+                    font-size: 14px !important;
+                    margin-top: 12px !important;
+                    font-weight: 500 !important;
+                    user-select: text !important;
+                  }
+
+                  .walletconnect-modal__mobile__toggle span {
+                    color: hsl(var(--foreground)) !important;
+                    user-select: text !important;
+                  }
+
+                  .walletconnect-modal__mobile__toggle a {
+                    text-decoration: none !important;
+                    color: hsl(var(--primary)) !important;
+                    user-select: text !important;
+                  }
+
+                  /* Style du texte de la bannière */
+                  .walletconnect-banner__content {
+                    color: hsl(var(--foreground)) !important;
+                    font-weight: 500 !important;
+                    user-select: text !important;
+                  }
+
+                  /* Style du texte de description */
+                  .walletconnect-modal__base .walletconnect-modal__mobile__toggle p {
+                    color: hsl(var(--foreground)) !important;
+                    opacity: 1 !important;
+                    user-select: text !important;
+                  }
+
+                  /* Override des styles spécifiques de dapp-core-component */
+                  .dapp-core-component__main__btn,
+                  .dapp-core-component__main__btn-primary,
+                  .dapp-wallet-connect-login-button {
+                    background-color: rgb(24 24 27) !important;
+                    color: white !important;
+                    border-radius: 0.5rem !important;
+                    transition: all 0.2s !important;
+                    border: none !important;
+                    margin: 0 !important;
+                    padding: 0 1rem !important;
+                  }
+                  
+                  .dapp-core-component__main__btn:hover,
+                  .dapp-core-component__main__btn-primary:hover,
+                  .dapp-wallet-connect-login-button:hover {
+                    background-color: rgb(39 39 42) !important;
+                  }
+
+                  /* Suppression des marges par défaut */
+                  .dapp-core-component__main__m-1,
+                  .dapp-core-component__main__mx-3,
+                  .dapp-core-component__main__px-4 {
+                    margin: 0 !important;
+                    padding: 0 !important;
                   }
                 `}</style>
                 <div className="w-full">
@@ -530,83 +653,68 @@ export function ConnectWallet() {
                     {...commonProps}
                     isWalletConnectV2={true}
                     loginButtonText="Connect with xPortal"
-                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center justify-center rounded-md text-xs font-medium h-8 px-3"
+                    className="w-full inline-flex items-center justify-center h-10 text-sm font-medium"
                   />
                 </div>
               </div>
               
-              <div className="flex justify-between items-center mt-2">
-                <p className="text-[10px] text-muted-foreground">Don't have the xPortal App?</p>
+              <div className="flex justify-between items-center mt-3">
+                <p className="text-xs text-muted-foreground">Don't have the xPortal App?</p>
                 <a 
                   href="https://xportal.com" 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="text-primary hover:text-primary/90 text-[10px] font-medium"
+                  className="text-primary hover:text-primary/90 text-xs font-medium"
                 >
-                  Get xPortal
+                  Get xPortal →
                 </a>
               </div>
             </div>
 
-            {/* OAuth & Credentials */}
+            {/* OAuth Section */}
             <div className="flex flex-col gap-3 w-full">
-              <div className="grid grid-cols-2 gap-2 w-full">
+              <div className="text-sm font-medium text-muted-foreground px-1">
+                Or continue with
+              </div>
+              <div className="grid grid-cols-2 gap-3 w-full">
                 {/* GitHub Section */}
-                <div className="p-2 rounded-lg bg-card">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-6 w-6 shrink-0 rounded-md bg-primary/10 flex items-center justify-center">
-                      <Github width={14} height={14} />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-xs font-medium truncate">GitHub</h3>
-                    </div>
+                <Button
+                  variant="outline"
+                  className="h-11 text-sm relative overflow-hidden group" 
+                  onClick={handleGithubLogin}
+                  disabled={isLoading}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="flex items-center gap-2">
+                    <Github className="h-5 w-5" />
+                    GitHub
                   </div>
-                  
-                  <Button
-                    variant="outline"
-                    className="w-full h-7 text-[10px]" 
-                    onClick={handleGithubLogin}
-                    disabled={isLoading}
-                    size="sm"
-                  >
-                    <Github className="mr-1 h-3 w-3" />
-                    Sign in
-                  </Button>
-                </div>
+                </Button>
 
                 {/* Gmail Section */}
-                <div className="p-2 rounded-lg bg-card">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-6 w-6 shrink-0 rounded-md bg-primary/10 flex items-center justify-center">
-                      <Mail width={14} height={14} />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-xs font-medium truncate">Gmail</h3>
-                    </div>
+                <Button
+                  variant="outline"
+                  className="h-11 text-sm relative overflow-hidden group" 
+                  onClick={handleGoogleLogin}
+                  disabled={isLoading}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-5 w-5" />
+                    Gmail
                   </div>
-                  
-                  <Button
-                    variant="outline" 
-                    className="w-full h-7 text-[10px]" 
-                    onClick={handleGoogleLogin}
-                    disabled={isLoading}
-                    size="sm"
-                  >
-                    <Mail className="mr-1 h-3 w-3" />
-                    Sign in
-                  </Button>
-                </div>
+                </Button>
               </div>
+            </div>
 
-              {/* Identifiant + Mot de passe Section */}
-              <div className="rounded-lg border shadow-sm bg-card text-card-foreground p-4">
-                <h3 className="font-medium text-sm flex items-center gap-2 text-white">
-                  <Mail className="h-4 w-4" />
-                  {isRegistering ? "Register" : "Username + Password"}
-                </h3>
-                
-                {renderForm()}
-              </div>
+            {/* Credentials Section */}
+            <div className="rounded-xl border shadow-sm bg-gradient-to-br from-card to-card/80 p-4">
+              <h3 className="font-semibold text-base flex items-center gap-2 mb-3">
+                <User className="h-5 w-5" />
+                {isRegistering ? "Create an account" : "Sign in with credentials"}
+              </h3>
+              
+              {renderForm()}
             </div>
           </div>
         </DialogContent>

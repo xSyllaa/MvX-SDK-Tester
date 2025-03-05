@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import postgres from 'postgres';
 
+// Spécifier le runtime Node.js
+export const runtime = 'nodejs';
+
 // Connexion à la base de données Supabase
 const sql = postgres(process.env.DATABASE_URL || '');
 
