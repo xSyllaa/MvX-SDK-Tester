@@ -9,7 +9,6 @@ export const runtime = 'nodejs';
 const sql = postgres(process.env.DATABASE_URL || '');
 
 export async function POST(req: NextRequest) {
-  console.log('🔑 [API] Début du processus de création d\'un utilisateur anonyme');
   
   // Récupérer les informations du client
   const ipAddress = req.headers.get('x-forwarded-for') || req.ip || '';
@@ -20,7 +19,6 @@ export async function POST(req: NextRequest) {
     const authToken = req.cookies.get('auth_token')?.value;
     
     if (authToken) {
-      console.log('🍪 [API] Cookie d\'authentification trouvé, vérification de la validité');
       
       // Vérifier si la session est valide
       const existingSession = await sql`
@@ -32,7 +30,6 @@ export async function POST(req: NextRequest) {
       `;
       
       if (existingSession.length > 0) {
-        console.log('✅ [API] Session existante trouvée, réutilisation');
         
         // Mettre à jour la date d'expiration de la session
         const expiresAt = new Date();
@@ -46,7 +43,6 @@ export async function POST(req: NextRequest) {
         
         // Renvoyer l'utilisateur existant
         const user = existingSession[0];
-        console.log(`🎉 [API] Réutilisation de l'utilisateur anonyme: ${user.username}`);
         
         const response = NextResponse.json({
           success: true,
@@ -72,7 +68,6 @@ export async function POST(req: NextRequest) {
         return response;
       }
       
-      console.log('⚠️ [API] Session expirée ou invalide, création d\'un nouvel utilisateur anonyme');
     }
     
     // Vérifier si un utilisateur récent existe pour cette IP/user-agent (dans les dernières 24h)
@@ -90,7 +85,6 @@ export async function POST(req: NextRequest) {
     `;
     
     if (recentSession.length > 0) {
-      console.log('✅ [API] Utilisateur anonyme récent trouvé pour cette IP, réutilisation');
       
       // Générer un nouveau token pour la session
       const token = uuidv4();
@@ -117,7 +111,6 @@ export async function POST(req: NextRequest) {
         )
       `;
       
-      console.log(`✅ [API] Nouvelle session créée pour l'utilisateur anonyme existant: ${recentSession[0].username}`);
       
       const user = recentSession[0];
       const response = NextResponse.json({
@@ -150,7 +143,6 @@ export async function POST(req: NextRequest) {
     const username = `guest_${anonymousId.substring(0, 8)}`;
     const displayName = `Guest User ${anonymousId.substring(0, 4)}`;
     
-    console.log(`🧩 [API] Création d'un nouvel utilisateur anonyme avec username: ${username}`);
     
     // Transaction pour créer l'utilisateur anonyme et sa méthode d'authentification
     let userId;
@@ -182,10 +174,8 @@ export async function POST(req: NextRequest) {
       `;
       
       userId = newUser[0].id;
-      console.log(`✅ [API] Utilisateur anonyme créé avec succès, ID: ${userId}`);
       
       // Récupérer l'ID de la méthode d'authentification anonyme
-      console.log('🔍 [API] Récupération de la méthode d\'authentification anonyme');
       const authMethod = await sql`
         SELECT id FROM "auth_methods" WHERE name = 'anonymous'
       `;
@@ -196,10 +186,8 @@ export async function POST(req: NextRequest) {
       }
       
       const authMethodId = authMethod[0].id;
-      console.log(`✅ [API] Méthode d'authentification trouvée, ID: ${authMethodId}`);
       
       // Créer la méthode d'authentification pour cet utilisateur
-      console.log('🔍 [API] Liaison de l\'utilisateur avec la méthode d\'authentification anonyme');
       await sql`
         INSERT INTO "user_auth_methods" (
           user_id, 
@@ -220,10 +208,8 @@ export async function POST(req: NextRequest) {
           NOW()
         )
       `;
-      console.log('✅ [API] Méthode d\'authentification créée avec succès');
       
       // Créer une session pour l'utilisateur anonyme
-      console.log('🔍 [API] Création d\'une session pour l\'utilisateur anonyme');
       token = uuidv4();
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 30); // Expire dans 30 jours
@@ -246,11 +232,9 @@ export async function POST(req: NextRequest) {
           NOW()
         )
       `;
-      console.log(`✅ [API] Session créée avec succès, Token: ${token.substring(0, 8)}...`);
     });
     
     // Retourner les informations de l'utilisateur anonyme
-    console.log('🎉 [API] Processus d\'authentification anonyme terminé avec succès');
     const response = NextResponse.json({
       success: true,
       message: 'Anonymous user created successfully',
@@ -264,7 +248,6 @@ export async function POST(req: NextRequest) {
     });
     
     // Définir le cookie d'authentification
-    console.log('🍪 [API] Définition du cookie d\'authentification');
     response.cookies.set('auth_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

@@ -10,6 +10,7 @@ import { WalletConnectLoginButton } from "@multiversx/sdk-dapp/UI";
 import { XPortalLogo } from "@/components/icons/xportal-logo";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 
 // Type pour les props des boutons de connexion
 type WalletConnectLoginButtonPropsType = {
@@ -41,6 +42,8 @@ export function ConnectWallet() {
     registerWithCredentials,
     logout
   } = useAuth();
+
+  const { toast } = useToast();
 
   // Fonction utilitaire pour récupérer un cookie
   const getCookieValue = (name: string): string | null => {
@@ -97,15 +100,29 @@ export function ConnectWallet() {
   };
 
   const handleGithubLogin = async () => {
-    // TODO: Implement with our own system
-    // await loginWithGithub();
-    setIsOpen(false);
+    // Afficher une notification indiquant que cette fonctionnalité sera disponible ultérieurement
+    toast({
+      title: "Coming Soon",
+      description: "GitHub authentication will be available soon.",
+      variant: "default",
+      duration: 3000,
+    });
+    
+    // Ne pas fermer le modal afin que l'utilisateur puisse choisir une autre option
+    // setIsOpen(false);
   };
 
   const handleGoogleLogin = async () => {
-    // TODO: Implement with our own system
-    // await loginWithGoogle();
-    setIsOpen(false);
+    // Afficher une notification indiquant que cette fonctionnalité sera disponible ultérieurement
+    toast({
+      title: "Coming Soon",
+      description: "Gmail authentication will be available soon.",
+      variant: "default",
+      duration: 3000,
+    });
+    
+    // Ne pas fermer le modal afin que l'utilisateur puisse choisir une autre option
+    // setIsOpen(false);
   };
 
   const handleCredentialsLogin = async (e: React.FormEvent) => {

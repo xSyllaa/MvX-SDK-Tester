@@ -12,6 +12,8 @@ import { ChatInterface } from "@/components/chat/ChatInterface"
 import { MultiversXProvider } from "@/app/providers/dapp-provider"
 import { Providers } from "@/app/providers"
 import { AuthProvider } from '@/contexts/auth-context'
+import { Toaster } from "@/components/ui/toaster"
+import Script from "next/script"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -29,6 +31,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
+        <Script 
+          src="https://cloud.umami.is/script.js" 
+          data-website-id="d7b6f417-adbd-4469-93eb-e33dcce27f19" 
+          strategy="afterInteractive"
+        />
         <AuthProvider>
           <Providers>
             <MultiversXProvider>
@@ -45,6 +52,7 @@ export default function RootLayout({
                     <Footer />
                   </div>
                   <ChatToggle />
+                  <Toaster />
                 </TooltipProvider>
               </ChatProvider>
             </MultiversXProvider>
