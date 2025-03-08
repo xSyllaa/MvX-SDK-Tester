@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Upload, Info, PlusCircle, X } from "lucide-react";
+import { ArrowLeft, Upload, Info, PlusCircle, X, AlertCircle, Github } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +25,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 
 export default function SubmitComponentPage() {
   const router = useRouter();
@@ -38,6 +43,7 @@ export default function SubmitComponentPage() {
   const [isPublic, setIsPublic] = useState(true);
   const [files, setFiles] = useState<File[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleAddTag = () => {
     if (currentTag && !tags.includes(currentTag) && tags.length < 5) {
@@ -77,28 +83,50 @@ export default function SubmitComponentPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitError(null);
     
     try {
-      // Simulation of a successful submission
-      console.log({
-        title,
-        description,
-        category,
-        tags,
-        githubUrl,
-        isPublic,
-        files
+      // Validation
+      if (!title || !description || !category) {
+        setSubmitError("Please fill in all required fields.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!githubUrl) {
+        setSubmitError("GitHub URL is required. Please provide a link to your component repository.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Submit to the API
+      const response = await fetch('/api/components', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          description,
+          category,
+          tags,
+          githubUrl,
+          isPublic,
+          // Note: authorId will be added server-side if user is authenticated
+        }),
       });
+
+      const data = await response.json();
       
-      // In a real implementation, you would send the data to the server here
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit component');
+      }
       
-      // Simulate a delay for the example
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Redirect to the confirmation page
+      // Redirect to success page
       router.push('/components/submit/success');
     } catch (error) {
       console.error("Error submitting component:", error);
+      setSubmitError(error instanceof Error ? error.message : "An unexpected error occurred");
     } finally {
       setIsSubmitting(false);
     }
@@ -132,8 +160,16 @@ export default function SubmitComponentPage() {
               </CardHeader>
               
               <CardContent className="space-y-6">
+                {submitError && (
+                  <Alert variant="destructive" className="mb-6">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{submitError}</AlertDescription>
+                  </Alert>
+                )}
+
                 <div className="space-y-2">
-                  <Label htmlFor="title">Component Name</Label>
+                  <Label htmlFor="title">Component Name <span className="text-destructive">*</span></Label>
                   <Input 
                     id="title" 
                     placeholder="e.g., Transaction Builder" 
@@ -144,7 +180,7 @@ export default function SubmitComponentPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">Description <span className="text-destructive">*</span></Label>
                   <Textarea 
                     id="description" 
                     placeholder="Describe what your component does and how it can be used..." 
@@ -157,7 +193,7 @@ export default function SubmitComponentPage() {
                 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="category">Category</Label>
+                    <Label htmlFor="category">Category <span className="text-destructive">*</span></Label>
                     <Select value={category} onValueChange={setCategory} required>
                       <SelectTrigger id="category">
                         <SelectValue placeholder="Select a category" />
@@ -232,52 +268,43 @@ export default function SubmitComponentPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="github">GitHub Repository URL (Optional)</Label>
-                  <Input 
-                    id="github" 
-                    placeholder="https://github.com/yourusername/your-repo" 
-                    value={githubUrl}
-                    onChange={(e) => setGithubUrl(e.target.value)}
-                  />
+                  <Label htmlFor="github">GitHub Repository URL <span className="text-destructive">*</span></Label>
+                  <div className="relative">
+                    <Github className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      id="github" 
+                      placeholder="https://github.com/yourusername/your-repo" 
+                      value={githubUrl}
+                      onChange={(e) => setGithubUrl(e.target.value)}
+                      className="pl-8"
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Currently, components can only be shared via GitHub repositories. Please provide a link to your component's repository.
+                  </p>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="files">Upload Files</Label>
-                  <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="files">Upload Files</Label>
+                    <Badge variant="outline" className="text-xs">Coming Soon</Badge>
+                  </div>
+                  <div className="border-2 border-dashed rounded-lg p-6 text-center bg-muted/20">
                     <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                    <p className="text-sm font-medium mb-1">Drag & drop files here or click to browse</p>
-                    <p className="text-xs text-muted-foreground mb-4">ZIP, JavaScript, TypeScript, or React files</p>
+                    <p className="text-sm font-medium mb-1">Direct file uploads will be available soon</p>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      For now, please share your component through GitHub
+                    </p>
                     
-                    <Input 
-                      id="files" 
-                      type="file" 
-                      className="hidden" 
-                      onChange={handleFileChange}
-                      multiple
-                      accept=".zip,.js,.jsx,.ts,.tsx,.json"
-                    />
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => document.getElementById('files')?.click()}
-                      className="w-full max-w-xs"
+                      className="w-full max-w-xs opacity-50 cursor-not-allowed"
+                      disabled
                     >
-                      Select Files
+                      File Uploads Coming Soon
                     </Button>
-                    
-                    {files.length > 0 && (
-                      <div className="mt-4 text-left">
-                        <p className="text-sm font-medium mb-2">{files.length} file(s) selected:</p>
-                        <ul className="text-xs space-y-1">
-                          {files.map((file, i) => (
-                            <li key={i} className="flex items-center justify-between">
-                              <span className="truncate max-w-[280px]">{file.name}</span>
-                              <span className="text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
                   </div>
                 </div>
                 
@@ -332,13 +359,12 @@ export default function SubmitComponentPage() {
                       </div>
                     )}
                     
-                    {previewImage && (
-                      <div className="mt-3">
-                        <img 
-                          src={previewImage} 
-                          alt="Preview" 
-                          className="rounded-md max-h-48 w-full object-cover" 
-                        />
+                    {githubUrl && (
+                      <div className="pt-2 text-sm">
+                        <span className="text-muted-foreground">Source: </span>
+                        <Link href={githubUrl} target="_blank" className="text-primary hover:underline truncate inline-block max-w-full">
+                          {githubUrl.replace(/^https?:\/\/(www\.)?github\.com\//, '')}
+                        </Link>
                       </div>
                     )}
                   </div>
@@ -358,6 +384,11 @@ export default function SubmitComponentPage() {
                 <div className="space-y-1">
                   <p className="font-medium">Quality Standards</p>
                   <p className="text-muted-foreground">Ensure your component works as described and includes clear documentation.</p>
+                </div>
+                
+                <div className="space-y-1">
+                  <p className="font-medium">GitHub Repository</p>
+                  <p className="text-muted-foreground">Your repository should include a README with installation and usage instructions.</p>
                 </div>
                 
                 <div className="space-y-1">

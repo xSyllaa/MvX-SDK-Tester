@@ -74,18 +74,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Fonction pour vérifier l'état d'authentification
   const checkAuthStatus = async () => {
-    console.log('🔎 [AuthContext] Vérification du statut d\'authentification');
     
     // Éviter les vérifications multiples simultanées
     const now = Date.now();
     if (isGlobalInitializing) {
-      console.log('⏳ [AuthContext] Une vérification est déjà en cours, attente...');
       return;
     }
     
     // Éviter les vérifications trop rapprochées (max 1 fois par seconde)
     if (now - lastInitAttempt < 1000) {
-      console.log('⏱️ [AuthContext] Vérification trop rapprochée, attente...');
       return;
     }
     
@@ -103,7 +100,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Vérifier si un cookie d'authentification existe
       const authToken = getCookie('auth_token');
       if (authToken) {
-        console.log('🍪 [AuthContext] Cookie d\'authentification trouvé, vérification...');
       }
       
       const response = await fetch('/api/auth/me', {
@@ -118,7 +114,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ [AuthContext] Utilisateur authentifié:', data.user);
         setState({
           user: data.user,
           isAuthenticated: true,
@@ -128,7 +123,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           isInitialized: true
         });
       } else {
-        console.log('🔑 [AuthContext] Aucun utilisateur authentifié, création d\'un compte anonyme...');
         // Pas d'utilisateur connecté, créer un utilisateur anonyme
         await loginAnonymously();
       }
@@ -138,7 +132,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      console.error('❌ [AuthContext] Erreur lors de la vérification de l\'authentification:', error);
       setState(prev => ({
         ...prev,
         isLoading: false,
@@ -154,11 +147,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginAnonymously = async () => {
     if (!isMounted.current) return;
     
-    console.log('🔑 [AuthContext] Début de l\'authentification anonyme...');
     setState(prev => ({...prev, isLoading: true, error: null}));
     
     try {
-      console.log('📡 [AuthContext] Envoi de la requête d\'authentification anonyme...');
       const response = await fetch('/api/auth/anonymous', {
         method: 'POST',
         credentials: 'include'
@@ -167,10 +158,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!isMounted.current) return;
 
       const data: AuthResponse = await response.json();
-      console.log('📩 [AuthContext] Réponse reçue pour l\'authentification anonyme:', data.message);
       
       if (data.success) {
-        console.log('✅ [AuthContext] Authentification anonyme réussie!');
         setState({
           user: data.user,
           isAuthenticated: true,
@@ -210,7 +199,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       
-      console.log('Attempting to login with credentials');
       
       const response = await fetch('/api/auth/login', {
         method: 'POST',
@@ -265,7 +253,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const shouldUpgradeAnonymous = !!anonymousToken;
       
       if (shouldUpgradeAnonymous) {
-        console.log('Linking anonymous account to new credentials');
         // Mettre à niveau le compte anonyme existant
         const response = await fetch('/api/auth/link-account', {
           method: 'POST',
@@ -385,7 +372,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       // Après la déconnexion, créer un nouvel utilisateur anonyme
-      console.log('🔄 [AuthContext] Déconnexion réussie, création d\'un nouveau compte anonyme...');
       await loginAnonymously();
     } catch (error) {
       if (!isMounted.current) return;
@@ -431,7 +417,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const responseData = await response.json();
       
       if (responseData.success) {
-        console.log('✅ [AuthContext] Mise à niveau du compte anonyme réussie!', responseData.user);
         setState({
           user: responseData.user,
           isAuthenticated: true,

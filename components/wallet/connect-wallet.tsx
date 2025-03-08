@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Wallet, Github, Mail, User, Settings, LogOut, X, AlertCircle, Eye, EyeOff } from 'lucide-react';
@@ -11,6 +11,7 @@ import { XPortalLogo } from "@/components/icons/xportal-logo";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { AIUsageStatus } from '@/app/components/AIUsageStatus';
 
 // Type pour les props des boutons de connexion
 type WalletConnectLoginButtonPropsType = {
@@ -430,6 +431,9 @@ export function ConnectWallet() {
                 </Button>
               </div>
             </div>
+
+            {/* AI Usage Status */}
+            <AIUsageStatus className="bg-card" />
           </div>
         </DialogContent>
       </Dialog>
