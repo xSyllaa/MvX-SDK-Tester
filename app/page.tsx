@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link"
-import { Search, ArrowRight, Code, Database, Layers } from "lucide-react"
+import { Search, ArrowRight, Code, Database, Layers, Share2, Plus, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { motion } from "framer-motion"
@@ -233,6 +233,96 @@ export default function Home() {
                 </ul>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-b from-muted/40 to-background">
+          <div className="container px-4 md:px-6">
+            <AnimatedSection>
+              <div className="text-center max-w-3xl mx-auto mb-12">
+                <div className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm mb-4">
+                  <div className="h-2 w-2 rounded-full bg-primary"></div>
+                  <span className="text-foreground font-medium">New Feature</span>
+                </div>
+                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl mb-4">
+                  Community Component Library
+                </h2>
+                <p className="text-muted-foreground md:text-xl/relaxed">
+                  Discover, share, and reuse components built by the MultiversX community to accelerate your development workflow.
+                </p>
+              </div>
+            </AnimatedSection>
+
+            <div className="grid md:grid-cols-3 gap-8 mb-12">
+              <AnimatedSection delay={0.1}>
+                <div className="flex flex-col h-full p-6 bg-card border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                  <div className="rounded-full w-12 h-12 flex items-center justify-center bg-primary/10 mb-4">
+                    <Share2 className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Share Components</h3>
+                  <p className="text-muted-foreground flex-grow mb-4">
+                    Contribute to the MultiversX ecosystem by sharing your reusable components with other developers.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => router.push('/components/submit')}
+                  >
+                    Submit a Component
+                  </Button>
+                </div>
+              </AnimatedSection>
+
+              <AnimatedSection delay={0.2}>
+                <div className="flex flex-col h-full p-6 bg-card border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                  <div className="rounded-full w-12 h-12 flex items-center justify-center bg-primary/10 mb-4">
+                    <Code className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Discover Solutions</h3>
+                  <p className="text-muted-foreground flex-grow mb-4">
+                    Find ready-to-use components and tools for common development challenges in the MultiversX ecosystem.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => router.push('/key-components')}
+                  >
+                    Explore Library
+                  </Button>
+                </div>
+              </AnimatedSection>
+
+              <AnimatedSection delay={0.3}>
+                <div className="flex flex-col h-full p-6 bg-card border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                  <div className="rounded-full w-12 h-12 flex items-center justify-center bg-primary/10 mb-4">
+                    <Users className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Build Together</h3>
+                  <p className="text-muted-foreground flex-grow mb-4">
+                    Join a community of developers collaborating to improve and extend the MultiversX component ecosystem.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => router.push('/key-components')}
+                  >
+                    Join Community
+                  </Button>
+                </div>
+              </AnimatedSection>
+            </div>
+
+            <AnimatedSection delay={0.4}>
+              <div className="flex justify-center">
+                <Button 
+                  size="lg" 
+                  className="font-mono"
+                  onClick={() => router.push('/key-components')}
+                >
+                  View Component Library <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </AnimatedSection>
           </div>
         </section>
 
