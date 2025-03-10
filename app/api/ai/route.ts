@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit } from './middleware';
 
+// Spécifier que cette route API doit s'exécuter dans l'environnement Node.js et non Edge
+export const runtime = 'nodejs';
+
 export async function POST(req: NextRequest) {
   // Vérifier le rate limit
   const rateLimitResponse = await rateLimit(req);

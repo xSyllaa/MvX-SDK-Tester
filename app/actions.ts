@@ -4,6 +4,9 @@ import { google } from "@ai-sdk/google";
 import { streamText } from "ai";
 import { createStreamableValue } from "ai/rsc";
 
+// Spécifier que ces actions serveur doivent s'exécuter dans l'environnement Node.js et non Edge
+export const runtime = 'nodejs';
+
 export type Message = {
   role: "user" | "assistant" | "system";
   content: string;

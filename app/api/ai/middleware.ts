@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
 import { Session } from 'next-auth';
 
+// Spécifier que ce middleware doit s'exécuter dans l'environnement Node.js et non Edge
+export const runtime = 'nodejs';
+
 // Interface étendue pour la session avec le champ id
 interface ExtendedSession extends Session {
   user?: {

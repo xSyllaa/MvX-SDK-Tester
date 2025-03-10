@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import postgres from 'postgres';
 
+// Spécifier que ce middleware doit s'exécuter dans l'environnement Node.js et non Edge
+export const runtime = 'nodejs';
+
 // Routes qui n'ont pas besoin d'authentification
 const publicRoutes = [
   '/',

@@ -40,6 +40,17 @@ const nextConfig = {
       },
     ],
   },
+  // Configuration pour désactiver le runtime Edge par défaut
+  experimental: {
+    serverActions: {
+      // Utiliser Node.js par défaut pour les Server Actions
+      defaultRuntime: 'nodejs',
+    },
+  },
+  // S'assurer que les API routes utilisent Node.js par défaut
+  serverRuntimeConfig: {
+    defaultRuntime: 'nodejs',
+  },
 };
 
 module.exports = nextConfig; 

@@ -64,6 +64,88 @@ Our working prototype demonstrates the full capabilities of the MvxLib:
 - **GitHub Repository**: [URL to be provided]
 - **Video Demonstration**: [URL to be provided]
 
+## Site Structure and Features
+
+MvxLib is organized into several key sections, each designed to address specific developer needs:
+
+### 1. SDK and ABI Discovery Portal
+
+The homepage features a comprehensive directory of MultiversX SDKs and ABIs, organized for easy discovery:
+
+- **Advanced Search and Filtering**: Find SDKs and ABIs by language, purpose, or functionality using our intuitive tagging system
+- **Comparison View**: Compare different SDKs side-by-side to choose the best fit for your project
+- **Popularity Metrics**: See which SDKs are most widely used in the community
+- **Recent Updates**: Stay informed about the latest SDK versions and changes
+
+Each SDK listing includes:
+- Brief description and key features
+- Supported platforms and languages
+- GitHub stars and activity metrics
+- Community rating and feedback
+
+### 2. SDK and ABI Analyzer
+
+Once developers select an SDK or ABI, they can explore it in depth through our analyzer:
+
+- **Repository Structure Visualization**: Interactive tree view of the repository structure
+- **Code Browser**: Syntax-highlighted view of code files with smart navigation
+- **Documentation Viewer**: Integrated documentation display with contextual AI assistance
+- **Function Explorer**: Browse available functions and methods with detailed parameter information
+
+The analyzer includes these features:
+- Automatic identification of key components
+- Contextual AI explanations of complex code sections
+- Links between related functions and dependencies
+- Search functionality to quickly locate specific features
+
+### 3. Endpoint Testing Laboratory
+
+The testing laboratory enables developers to experiment with SDK functions and smart contract endpoints:
+
+- **Dynamic Form Generation**: Automatically generated input forms based on ABI specifications
+- **Parameter Validation**: Real-time validation of parameters with helpful error messages
+- **Network Selection**: Easily switch between Mainnet, Testnet, and Devnet
+- **Transaction Simulation**: Preview transaction effects before execution
+- **Result Visualization**: Clear display of execution results with explanation of return values
+
+Developers can:
+- Save test configurations for future use
+- Share test setups with other developers
+- Export working code examples based on their tests
+- Track transaction history during testing sessions
+
+### 4. Community Component Library
+
+The component library offers ready-to-use components that can be integrated into MultiversX projects:
+
+- **Categorized Components**: Browse components by category (UI elements, smart contract templates, etc.)
+- **Preview System**: Interactive previews of components before download
+- **Integration Guide**: Step-by-step instructions for adding components to projects
+- **Versioning Support**: Access to different versions of popular components
+
+Community contribution features:
+- **Component Submission Portal**: User-friendly interface for community members to contribute their own components
+- **Review System**: Quality assurance through community and expert reviews
+- **Forking and Improvement**: Build upon existing components with proper attribution
+- **Usage Analytics**: See how widely used each component is in the community
+
+### 5. Learning Hub
+
+A dedicated section for structured learning about MultiversX development:
+
+- **Interactive Tutorials**: Step-by-step guides for common development tasks
+- **Skill Tracks**: Progressive learning paths from beginner to advanced levels
+- **Challenge Projects**: Practical exercises to apply learned concepts
+- **AI-Assisted Learning**: Get help when stuck on specific concepts or problems
+
+### 6. Integration Showcase
+
+A gallery of successful projects built with MultiversX, featuring:
+- Case studies of real-world applications
+- Technical breakdowns of implementation approaches
+- Developer interviews and lessons learned
+- Code snippets highlighting innovative solutions
+
 ## Technical Architecture
 
 MvxLib is built with the following technologies:
