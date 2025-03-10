@@ -144,15 +144,6 @@ Browse and contribute to the community component collection:
 - Integration patterns and examples
 - Usage analytics and community ratings
 
-## 🤝 Contributing
-
-We welcome contributions from the community! See [CONTRIBUTING.md](CONTRIBUTING.md) for details on:
-
-- Submitting bug reports and feature requests
-- Development workflow
-- Pull request process
-- Code of conduct
-
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -178,5 +169,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📬 Contact
 
 - **Developer**: Sylla
-- **GitHub**: [https://github.com/yourusername](https://github.com/yourusername)
-- **Twitter**: [@yourhandle](https://twitter.com/yourhandle) 
+- **GitHub**: [https://github.com/xSyllaa)
+- **Twitter**: [https://x.com/xSylla_) 

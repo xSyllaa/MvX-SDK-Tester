@@ -184,21 +184,24 @@ function ContextManager({ preloadedSDK }: { preloadedSDK: SDK | null }) {
 function RepoHeader() {
   const { repoMetadata } = useRepoData();
   const { user } = useAuth();
-  const { toggleFavorite, isFavorite, favoriteCounts } = useSdkFavorites();
+  const { toggleFavorite, isFavorite, sdkList } = useSdkFavorites();
   
   if (!repoMetadata) return null;
   
-  const favoriteCount = favoriteCounts[repoMetadata.name] || 0;
+  // Trouver le nombre de favoris pour ce SDK dans la liste
+  const favoriteCount = repoMetadata.name 
+    ? (sdkList.find(sdk => sdk.sdk_name === repoMetadata.name)?.favorite_count || 0)
+    : 0;
   
   return (
     <div className="flex flex-col space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">
-            {repoMetadata.name}
+            {repoMetadata.name || 'Repository'}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {repoMetadata.description}
+            {repoMetadata.description || 'No description available'}
           </p>
         </div>
         
@@ -210,14 +213,14 @@ function RepoHeader() {
                   variant="ghost"
                   size="icon"
                   className="h-10 w-10"
-                  onClick={() => user && toggleFavorite(repoMetadata.name)}
-                  disabled={!user}
+                  onClick={() => user && repoMetadata.name && toggleFavorite(repoMetadata.name)}
+                  disabled={!user || !repoMetadata.name}
                 >
                   <Heart 
-                    className={`h-5 w-5 ${isFavorite(repoMetadata.name) ? 'fill-current text-red-500' : ''}`} 
+                    className={`h-5 w-5 ${repoMetadata.name && isFavorite(repoMetadata.name) ? 'fill-current text-red-500' : ''}`} 
                   />
                   <span className="sr-only">
-                    {isFavorite(repoMetadata.name) ? 'Remove from favorites' : 'Add to favorites'}
+                    {repoMetadata.name && isFavorite(repoMetadata.name) ? 'Remove from favorites' : 'Add to favorites'}
                   </span>
                 </Button>
               </TooltipTrigger>

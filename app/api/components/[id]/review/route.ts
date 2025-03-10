@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 // Cette route permet de mettre à jour le statut "is_reviewed" d'un composant
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const componentId = params.id;
+    const componentId = context.params.id;
     
     if (!componentId) {
       return NextResponse.json(
