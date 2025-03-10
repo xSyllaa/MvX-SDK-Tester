@@ -4,11 +4,14 @@ import postgres from 'postgres';
 const sql = postgres(process.env.DATABASE_URL || '');
 
 export async function GET(
-  request: NextRequest,
-  context: { params: { userId: string } }
+  request: NextRequest
 ) {
   try {
-    const userId = context.params.userId;
+    // Extraire l'ID utilisateur directement depuis l'URL
+    const url = new URL(request.url);
+    const pathParts = url.pathname.split('/');
+    const userId = pathParts[pathParts.length - 1]; // L'ID est le dernier segment
+
     if (!userId) {
       return NextResponse.json(
         { error: 'User ID is required' },
