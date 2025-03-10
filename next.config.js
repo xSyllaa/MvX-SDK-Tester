@@ -40,16 +40,18 @@ const nextConfig = {
       },
     ],
   },
-  // Configuration pour désactiver le runtime Edge par défaut
+  // Configuration pour désactiver le runtime Edge pour tout le projet
   experimental: {
     serverActions: {
       // Utiliser Node.js par défaut pour les Server Actions
+      allowedOrigins: ['localhost:3000'],
+      bodySizeLimit: '2mb',
       defaultRuntime: 'nodejs',
     },
   },
-  // S'assurer que les API routes utilisent Node.js par défaut
+  // Forcer l'utilisation du runtime Node.js pour toutes les routes API
   serverRuntimeConfig: {
-    defaultRuntime: 'nodejs',
+    runtime: 'nodejs',
   },
 };
 

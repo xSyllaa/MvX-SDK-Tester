@@ -4,16 +4,15 @@ import { google } from "@ai-sdk/google";
 import { streamText } from "ai";
 import { createStreamableValue } from "ai/rsc";
 
-// Spécifier que ces actions serveur doivent s'exécuter dans l'environnement Node.js et non Edge
-export const runtime = 'nodejs';
-
 export type Message = {
   role: "user" | "assistant" | "system";
   content: string;
 };
 
 export async function continueConversation(history: Message[]) {
+  // Directive use server avec options
   "use server";
+  
   const stream = createStreamableValue();
   const model = google("models/gemini-1.5-pro-latest");
 

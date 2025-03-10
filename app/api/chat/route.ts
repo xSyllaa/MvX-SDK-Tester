@@ -1,8 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
 
-// Spécifier que cette route API doit s'exécuter dans l'environnement Node.js et non Edge
-export const runtime = 'nodejs';
+// Le runtime Node.js est configuré globalement dans next.config.js
+// Mais nous pourrions aussi l'activer ici si nécessaire avec:
+// export const runtime = 'nodejs';
 
 // Vérifier que la clé API est présente
 if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
