@@ -11,7 +11,6 @@ const sql = postgres(process.env.DATABASE_URL || '');
 export async function POST(req: NextRequest) {
   
   // Récupérer les informations du client
-  const ipAddress = req.headers.get('x-forwarded-for') || req.ip || '';
   const userAgent = req.headers.get('user-agent') || '';
   
   try {
@@ -70,14 +69,13 @@ export async function POST(req: NextRequest) {
       
     }
     
-    // Vérifier si un utilisateur récent existe pour cette IP/user-agent (dans les dernières 24h)
-    console.log('🔍 [API] Recherche d\'un utilisateur anonyme récent pour cette IP');
+    // Vérifier si un utilisateur récent existe pour ce user-agent (dans les dernières 24h)
+    console.log('🔍 [API] Recherche d\'un utilisateur anonyme récent');
     const recentSession = await sql`
       SELECT s.*, u.username, u.display_name, u.is_anonymous
       FROM "sessions" s
       JOIN "users" u ON s.user_id = u.id
-      WHERE s.ip_address = ${ipAddress}
-        AND s.user_agent = ${userAgent}
+      WHERE s.user_agent = ${userAgent}
         AND u.is_anonymous = true
         AND s.created_at > NOW() - INTERVAL '24 hours'
       ORDER BY s.created_at DESC
@@ -97,7 +95,6 @@ export async function POST(req: NextRequest) {
           user_id, 
           token, 
           expires_at, 
-          ip_address, 
           user_agent,
           created_at
         )
@@ -105,7 +102,6 @@ export async function POST(req: NextRequest) {
           ${recentSession[0].user_id}, 
           ${token}, 
           ${expiresAt.toISOString()}, 
-          ${ipAddress}, 
           ${userAgent},
           NOW()
         )
@@ -219,7 +215,6 @@ export async function POST(req: NextRequest) {
           user_id, 
           token, 
           expires_at, 
-          ip_address, 
           user_agent,
           created_at
         )
@@ -227,7 +222,6 @@ export async function POST(req: NextRequest) {
           ${userId}, 
           ${token}, 
           ${expiresAt.toISOString()}, 
-          ${ipAddress}, 
           ${userAgent},
           NOW()
         )

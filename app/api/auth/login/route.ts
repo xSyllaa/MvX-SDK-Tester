@@ -78,13 +78,12 @@ export async function POST(req: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30); // Expire dans 30 jours
 
-    const ipAddress = req.headers.get('x-forwarded-for') || req.ip || '';
     const userAgent = req.headers.get('user-agent') || '';
 
     // Enregistrer la session dans la base de données
     await sql`
-      INSERT INTO "sessions" (user_id, token, expires_at, ip_address, user_agent)
-      VALUES (${user.id}, ${token}, ${expiresAt.toISOString()}, ${ipAddress}, ${userAgent})
+      INSERT INTO "sessions" (user_id, token, expires_at, user_agent)
+      VALUES (${user.id}, ${token}, ${expiresAt.toISOString()}, ${userAgent})
     `;
 
     // Mettre à jour la date de dernière connexion
