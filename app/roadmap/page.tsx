@@ -109,6 +109,12 @@ export default function RoadmapPage() {
                   <strong>Comprehensive Learning Ecosystem</strong> - Build an integrated learning platform with tutorials, documentation, and interactive examples
                 </span>
               </li>
+              <li className="flex gap-2 items-start">
+                <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                <span className="text-card-foreground">
+                  <strong>On-Chain Social Verification</strong> - Implement blockchain-based verification system for shared components to enhance trust and credibility
+                </span>
+              </li>
             </ul>
           </div>
         </div>
