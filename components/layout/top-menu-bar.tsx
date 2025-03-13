@@ -198,6 +198,9 @@ export function TopMenuBar() {
                 <AnimatedLink href="/key-components" active={isActive('/key-components')}>
                   Components
                 </AnimatedLink>
+                <AnimatedLink href="/roadmap" active={isActive('/roadmap')}>
+                  Roadmap
+                </AnimatedLink>
               </nav>
               <div className="ml-6 flex items-center gap-2">
                 <ConnectWallet />
@@ -244,6 +247,14 @@ export function TopMenuBar() {
                   active={isActive('/key-components')}
                 >
                   Components
+                </AnimatedLink>
+                <AnimatedLink 
+                  href="/roadmap" 
+                  className="py-2 text-lg"
+                  onClick={toggleMobileMenu}
+                  active={isActive('/roadmap')}
+                >
+                  Roadmap
                 </AnimatedLink>
               </div>
             </div>

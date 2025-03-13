@@ -1,7 +1,7 @@
 import * as React from "react"
 import * as NavigationMenuPrimitive from "@radix-ui/react-navigation-menu"
 import { cva } from "class-variance-authority"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, Map } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -127,6 +127,21 @@ function ThemeToggleNavigationItem() {
   )
 }
 
+// Composant pour la Roadmap
+function RoadmapNavigationItem() {
+  return (
+    <NavigationMenuItem>
+      <NavigationMenuLink
+        href="/roadmap"
+        className={cn(navigationMenuTriggerStyle(), "flex items-center gap-1.5")}
+      >
+        <Map className="h-4 w-4" />
+        <span>Roadmap</span>
+      </NavigationMenuLink>
+    </NavigationMenuItem>
+  )
+}
+
 export {
   navigationMenuTriggerStyle,
   NavigationMenu,
@@ -138,4 +153,5 @@ export {
   NavigationMenuIndicator,
   NavigationMenuViewport,
   ThemeToggleNavigationItem,
+  RoadmapNavigationItem,
 }
