@@ -25,8 +25,8 @@ export function FileTree() {
     calculateFolderSize
   } = useRepoData();
 
-  // État local pour le toggle des statistiques
-  const [showFileStats, setShowFileStats] = useState(false);
+  // État local pour le toggle des statistiques - activé par défaut maintenant
+  const [showFileStats, setShowFileStats] = useState(true);
 
   // Fonction pour gérer le clic sur un fichier
   const handleFileClick = useCallback((node: FileNode) => {
