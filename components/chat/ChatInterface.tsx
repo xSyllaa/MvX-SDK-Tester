@@ -344,7 +344,7 @@ const ChatContent = memo(function ChatContent({ messages, error, isLoading, scro
                             return <code className="bg-secondary px-1 py-0.5 rounded text-sm">{children}</code>;
                           }
                           
-                          return <CodeBlock code={String(children).replace(/\n$/, '')} language={language} />;
+                          return <CodeBlock key={`code-${i}-${language}`} code={String(children).replace(/\n$/, '')} language={language} />;
                         }
                       }}
                     >
@@ -402,7 +402,7 @@ const ChatInput = memo(function ChatInput({ input, setInput, handleSend, isLoadi
   );
 });
 
-function CodeBlock({ code, language }: { code: string; language?: string }) {
+const CodeBlock = memo(function CodeBlock({ code, language }: { code: string; language?: string }) {
   const [isCopied, setIsCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -415,7 +415,7 @@ function CodeBlock({ code, language }: { code: string; language?: string }) {
     }
   };
 
-  const getLanguageExtension = (lang?: string) => {
+  const getLanguageExtension = useCallback((lang?: string) => {
     switch (lang?.toLowerCase()) {
       case 'javascript':
       case 'js':
@@ -448,7 +448,22 @@ function CodeBlock({ code, language }: { code: string; language?: string }) {
       default:
         return javascript();
     }
-  };
+  }, []);
+
+  // Mémoisez les extensions pour éviter les recréations inutiles
+  const extensions = useMemo(() => [
+    getLanguageExtension(language),
+    EditorView.lineWrapping,
+    EditorView.theme({
+      "&": {
+        backgroundColor: "transparent !important"
+      },
+      ".cm-gutters": {
+        backgroundColor: "transparent !important",
+        border: "none"
+      }
+    })
+  ], [getLanguageExtension, language]);
 
   return (
     <div className="rounded-md overflow-hidden my-2 border border-border">
@@ -481,21 +496,9 @@ function CodeBlock({ code, language }: { code: string; language?: string }) {
             foldGutter: false,
           }}
           editable={false}
-          extensions={[
-            getLanguageExtension(language),
-            EditorView.lineWrapping,
-            EditorView.theme({
-              "&": {
-                backgroundColor: "transparent !important"
-              },
-              ".cm-gutters": {
-                backgroundColor: "transparent !important",
-                border: "none"
-              }
-            })
-          ]}
+          extensions={extensions}
         />
       </div>
     </div>
   );
-}
+});

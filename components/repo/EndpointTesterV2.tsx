@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { formatFileSize } from "@/lib/utils"
 import { parameterTypes, detectParameterType, generateExampleValue, ParameterType } from "@/lib/endpoint-utils"
 
-type Endpoint = {
+export type Endpoint = {
   path: string
   method: string
   description?: string
@@ -25,7 +25,7 @@ type Endpoint = {
   jsdocReturn?: string
 }
 
-type RequestParam = {
+export type RequestParam = {
   name: string
   value: string
   required?: boolean
@@ -100,7 +100,7 @@ function useEndpointSelection(endpoints: Endpoint[]) {
 }
 
 // Function to determine endpoints based on language and file content
-const findEndpointsInFile = (content: string, path: string, language: string): Endpoint[] => {
+export const findEndpointsInFile = (content: string, path: string, language: string): Endpoint[] => {
   const detectedEndpoints: Endpoint[] = []
   
   // Check if it's a NextJS routes file
@@ -287,7 +287,7 @@ const getLineNumber = (text: string, index: number): number => {
 };
 
 // Function to generate suggested parameters from an endpoint
-const generateSuggestedParams = (endpoint: Endpoint): RequestParam[] => {
+export const generateSuggestedParams = (endpoint: Endpoint): RequestParam[] => {
   const params: RequestParam[] = [];
   
   // First add path variables as parameters
@@ -412,6 +412,34 @@ const generateSuggestedParams = (endpoint: Endpoint): RequestParam[] => {
   
   return params;
 }
+
+// Fonction pour convertir les endpoints en format compatible avec chat-contexts.ts
+export function formatEndpointsForContext(endpoints: Endpoint[], requestParams: RequestParam[]): any[] {
+  return endpoints.map(endpoint => {
+    // Rechercher les paramètres associés à cet endpoint
+    const params = endpoint.pathVariables?.length 
+      ? generateSuggestedParams(endpoint) 
+      : requestParams;
+
+    return {
+      path: endpoint.path,
+      method: endpoint.method,
+      description: endpoint.description || '',
+      jsdocDescription: endpoint.jsdocDescription || '',
+      jsdocReturn: endpoint.jsdocReturn || '',
+      params: params.map(param => ({
+        name: param.name,
+        type: param.type || 'string',
+        description: param.description || '',
+        required: param.required || false,
+        isPathVariable: param.isPathVariable || false
+      }))
+    };
+  });
+}
+
+// Exporter les hooks pour les rendre utilisables depuis l'extérieur
+export { useEndpointDetection, useEndpointSelection };
 
 // Sous-composant pour afficher les endpoints
 function EndpointSelector({ endpoints, selectedValue, onValueChange, onLineSelect }: {

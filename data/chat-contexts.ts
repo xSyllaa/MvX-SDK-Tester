@@ -5,6 +5,24 @@ export interface ChatContext {
   userContext?: string;
 }
 
+// Interfaces pour les endpoints et leurs paramètres
+export interface EndpointParam {
+  name: string;
+  type?: string;
+  description?: string;
+  required?: boolean;
+  isPathVariable?: boolean;
+}
+
+export interface Endpoint {
+  path: string;
+  method: string;
+  description?: string;
+  params?: EndpointParam[];
+  jsdocDescription?: string;
+  jsdocReturn?: string;
+}
+
 export function getLandingContext(): ChatContext {
   return {
     systemPrompt: `You are an advanced AI assistant on the MultiversX SDK Testing Platform, dedicated to helping developers explore, understand, and test MultiversX SDKs and ABIs.
@@ -99,7 +117,7 @@ export function getRepoContext(sdk: SDK & {
   last_updated?: string;
   language?: string;
   totalFiles?: number;
-}, openedFile?: { path: string; content: string; }): ChatContext {
+}, openedFile?: { path: string; content: string; }, endpoints?: Endpoint[]): ChatContext {
   const keyComponents = sdk.tags
     .filter(tag => tag.category === TagCategory.PURPOSE || tag.category === TagCategory.TECHNOLOGY)
     .map(tag => `- ${tag.name}: ${tag.category === TagCategory.PURPOSE ? 'Core functionality' : 'Technical component'}`)
@@ -117,8 +135,56 @@ export function getRepoContext(sdk: SDK & {
     
   // Information sur le fichier actuellement ouvert
   const currentOpenedFile = openedFile 
-    ? `\n\nCurrently Open File:\nPath: ${openedFile.path}\nContent:\n\`\`\`\n${openedFile.content}\n\`\`\``
+    ? `\n\nOPENED FILE:\nPath: ${openedFile.path}\nContent:\n\`\`\`\n${openedFile.content}\n\`\`\``
     : '';
+    
+  // Formatage des informations sur les endpoints détectés
+  let endpointsInfo = '';
+  if (endpoints && endpoints.length > 0) {
+    endpointsInfo = '\n\nDETECTED ENDPOINTS:\n';
+    
+    endpoints.forEach((endpoint, index) => {
+      endpointsInfo += `\n${index + 1}. ${endpoint.method} ${endpoint.path}\n`;
+      
+      if (endpoint.description) {
+        endpointsInfo += `   Description: ${endpoint.description}\n`;
+      }
+      
+      if (endpoint.jsdocDescription) {
+        endpointsInfo += `   Documentation: ${endpoint.jsdocDescription}\n`;
+      }
+      
+      if (endpoint.params && endpoint.params.length > 0) {
+        endpointsInfo += '   Parameters:\n';
+        
+        endpoint.params.forEach(param => {
+          endpointsInfo += `     - ${param.name}`;
+          
+          if (param.type) {
+            endpointsInfo += ` (${param.type})`;
+          }
+          
+          if (param.required) {
+            endpointsInfo += ' [Required]';
+          }
+          
+          if (param.isPathVariable) {
+            endpointsInfo += ' [Path Variable]';
+          }
+          
+          endpointsInfo += '\n';
+          
+          if (param.description) {
+            endpointsInfo += `       Description: ${param.description}\n`;
+          }
+        });
+      }
+      
+      if (endpoint.jsdocReturn) {
+        endpointsInfo += `   Returns: ${endpoint.jsdocReturn}\n`;
+      }
+    });
+  }
 
   return {
     systemPrompt: `You are a specialized technical assistant for the ${sdk.name} SDK, focused on helping developers implement and use this SDK effectively.
@@ -140,7 +206,7 @@ Key Components:
 ${keyComponents}
 
 Documentation:
-${sdk.readme || 'Documentation not available'}${currentOpenedFile}
+${sdk.readme || 'Documentation not available'}${currentOpenedFile}${endpointsInfo}
 
 Your Expertise Areas:
 
@@ -188,7 +254,7 @@ Remember to:
 
 Repository Structure:
 ${sdk.structure || 'Structure not available'}`,
-    userContext: `You are analyzing the ${sdk.name} SDK, which is ${sdk.description}${openedFile ? `. You are currently viewing the file: ${openedFile.path}` : ''}`
+    userContext: `You are analyzing the ${sdk.name} SDK, which is ${sdk.description}${openedFile ? `. You are currently viewing the file: ${openedFile.path}` : ''}${endpoints && endpoints.length > 0 ? ` with ${endpoints.length} detected endpoints` : ''}`
   };
 }
 

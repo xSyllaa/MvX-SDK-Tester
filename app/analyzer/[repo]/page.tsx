@@ -6,7 +6,13 @@ import { RepoStats } from "@/components/repo/RepoStats"
 import { FileTree } from "@/components/repo/FileTree"
 import { FileContent } from "@/components/repo/FileContent"
 import { useRepoData } from "@/components/repo/RepoDataProvider"
-import { EndpointTesterV2 } from "@/components/repo/EndpointTesterV2"
+import { 
+  EndpointTesterV2, 
+  findEndpointsInFile, 
+  generateSuggestedParams, 
+  formatEndpointsForContext,
+  type Endpoint as SDKEndpoint
+} from "@/components/repo/EndpointTesterV2"
 import { ChatInterface } from "@/components/chat/ChatInterface"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEffect, useState, useRef } from "react"
@@ -59,6 +65,9 @@ function ContextManager({ preloadedSDK }: { preloadedSDK: SDK | null }) {
   const pathname = usePathname();
   const contextRef = useRef(context);
   
+  // Pour détecter les endpoints si un fichier est ouvert
+  const [fileEndpoints, setFileEndpoints] = useState<any[]>([]);
+  
   // Fonction utilitaire pour formater la taille
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -96,6 +105,50 @@ function ContextManager({ preloadedSDK }: { preloadedSDK: SDK | null }) {
 
     return tree.map(node => formatNode(node)).join('');
   };
+  
+  // Effect pour détecter les endpoints dans le fichier sélectionné
+  useEffect(() => {
+    if (selectedFile && selectedFile.type === 'file' && selectedFile.content) {
+      const fileContent = selectedFile.content;
+      const filePath = selectedFile.path || '';
+      const fileExtension = filePath.split('.').pop()?.toLowerCase() || '';
+      
+      // Déterminer le langage en fonction de l'extension
+      let fileLanguage = 'text/plain';
+      if (['js', 'jsx'].includes(fileExtension)) fileLanguage = 'javascript';
+      if (['ts', 'tsx'].includes(fileExtension)) fileLanguage = 'typescript';
+      
+      try {
+        // Détecter les endpoints
+        const detectedEndpoints = findEndpointsInFile(fileContent, filePath, fileLanguage);
+        
+        // Formater les endpoints pour le contexte
+        if (detectedEndpoints.length > 0) {
+          // Générer des paramètres pour chaque endpoint
+          const endpointsWithParams = detectedEndpoints.map(endpoint => {
+            const params = generateSuggestedParams(endpoint);
+            return { ...endpoint, requestParams: params };
+          });
+          
+          // Formater les endpoints pour le contexte du chat
+          const formattedEndpoints = formatEndpointsForContext(
+            endpointsWithParams, 
+            [] // paramètres par défaut vides
+          );
+          
+          setFileEndpoints(formattedEndpoints);
+          console.log(`Détecté ${formattedEndpoints.length} endpoints dans le fichier`);
+        } else {
+          setFileEndpoints([]);
+        }
+      } catch (err) {
+        console.error('Erreur lors de la détection des endpoints:', err);
+        setFileEndpoints([]);
+      }
+    } else {
+      setFileEndpoints([]);
+    }
+  }, [selectedFile]);
   
   // Log des changements d'état
   useEffect(() => {
@@ -154,13 +207,22 @@ function ContextManager({ preloadedSDK }: { preloadedSDK: SDK | null }) {
           path: selectedFile.path,
           content: selectedFile.content || ''
         } : undefined;
-
-        const newContext = generateFullContext(getRepoContext(enrichedSDK, openedFile));
+        
+        // Récupérer le contexte avec ou sans endpoints
+        let newContext;
+        if (fileEndpoints.length > 0) {
+          newContext = generateFullContext(getRepoContext(enrichedSDK, openedFile, fileEndpoints));
+        } else {
+          newContext = generateFullContext(getRepoContext(enrichedSDK, openedFile));
+        }
         
         if (newContext !== contextRef.current) {
           setContext(newContext);
           contextRef.current = newContext;
           console.log('ContextManager - Contexte SDK mis à jour avec structure:', enrichedSDK.structure);
+          if (fileEndpoints.length > 0) {
+            console.log('ContextManager - Endpoints détectés ajoutés au contexte:', fileEndpoints.length);
+          }
         }
       }
     } 
@@ -182,7 +244,7 @@ function ContextManager({ preloadedSDK }: { preloadedSDK: SDK | null }) {
         console.log('ContextManager - Contexte Landing mis à jour');
       }
     }
-  }, [pathname, loading, error, repoMetadata, selectedFile, setContext]);
+  }, [pathname, loading, error, repoMetadata, selectedFile, setContext, fileEndpoints]);
 
   return null;
 }
