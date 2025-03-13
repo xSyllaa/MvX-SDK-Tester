@@ -55,7 +55,7 @@ function FileContentWrapper() {
 // Composant qui gère la mise à jour du contexte
 function ContextManager({ preloadedSDK }: { preloadedSDK: SDK | null }) {
   const { setContext, context } = useChat();
-  const { repoMetadata, loading, error, fileTree } = useRepoData();
+  const { repoMetadata, loading, error, fileTree, selectedFile } = useRepoData();
   const pathname = usePathname();
   const contextRef = useRef(context);
   
@@ -149,7 +149,13 @@ function ContextManager({ preloadedSDK }: { preloadedSDK: SDK | null }) {
           github_link: repoMetadata.repoUrl || ''
         };
 
-        const newContext = generateFullContext(getRepoContext(enrichedSDK));
+        // Création de l'objet pour le fichier actuellement ouvert
+        const openedFile = selectedFile && selectedFile.type === 'file' ? {
+          path: selectedFile.path,
+          content: selectedFile.content || ''
+        } : undefined;
+
+        const newContext = generateFullContext(getRepoContext(enrichedSDK, openedFile));
         
         if (newContext !== contextRef.current) {
           setContext(newContext);
@@ -176,7 +182,7 @@ function ContextManager({ preloadedSDK }: { preloadedSDK: SDK | null }) {
         console.log('ContextManager - Contexte Landing mis à jour');
       }
     }
-  }, [pathname, loading, error, repoMetadata, setContext]);
+  }, [pathname, loading, error, repoMetadata, selectedFile, setContext]);
 
   return null;
 }

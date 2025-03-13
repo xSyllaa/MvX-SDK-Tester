@@ -10,7 +10,7 @@ export function getLandingContext(): ChatContext {
     systemPrompt: `You are an advanced AI assistant on the MultiversX SDK Testing Platform, dedicated to helping developers explore, understand, and test MultiversX SDKs and ABIs.
 
 Your role is to:
-1. Welcome and guide users through the platform’s features.
+1. Welcome and guide users through the platform's features.
 2. Explain how to use interactive SDK analysis, endpoint testing, and code example tools.
 3. Assist users in selecting the right SDKs for their needs.
 4. Provide concise overviews of available SDKs.
@@ -99,7 +99,7 @@ export function getRepoContext(sdk: SDK & {
   last_updated?: string;
   language?: string;
   totalFiles?: number;
-}): ChatContext {
+}, openedFile?: { path: string; content: string; }): ChatContext {
   const keyComponents = sdk.tags
     .filter(tag => tag.category === TagCategory.PURPOSE || tag.category === TagCategory.TECHNOLOGY)
     .map(tag => `- ${tag.name}: ${tag.category === TagCategory.PURPOSE ? 'Core functionality' : 'Technical component'}`)
@@ -114,6 +114,11 @@ export function getRepoContext(sdk: SDK & {
     .filter(tag => tag.category === TagCategory.PLATFORM)
     .map(tag => tag.name)
     .join(', ');
+    
+  // Information sur le fichier actuellement ouvert
+  const currentOpenedFile = openedFile 
+    ? `\n\nCurrently Open File:\nPath: ${openedFile.path}\nContent:\n\`\`\`\n${openedFile.content}\n\`\`\``
+    : '';
 
   return {
     systemPrompt: `You are a specialized technical assistant for the ${sdk.name} SDK, focused on helping developers implement and use this SDK effectively.
@@ -135,7 +140,7 @@ Key Components:
 ${keyComponents}
 
 Documentation:
-${sdk.readme || 'Documentation not available'}
+${sdk.readme || 'Documentation not available'}${currentOpenedFile}
 
 Your Expertise Areas:
 
@@ -183,7 +188,7 @@ Remember to:
 
 Repository Structure:
 ${sdk.structure || 'Structure not available'}`,
-    userContext: `You are analyzing the ${sdk.name} SDK, which is ${sdk.description}`
+    userContext: `You are analyzing the ${sdk.name} SDK, which is ${sdk.description}${openedFile ? `. You are currently viewing the file: ${openedFile.path}` : ''}`
   };
 }
 
