@@ -130,6 +130,11 @@ export async function POST(request: NextRequest) {
       const authMethodId = authMethods[0].id;
       
       // Créer l'entrée user_auth_methods avec le format compatible avec login/register
+      console.log(`🔒 [LINK] Création de la méthode d'authentification pour l'utilisateur: ${userId}`);
+      // Ici le mot de passe est correctement stocké dans auth_data sous forme de JSON
+      const authData = JSON.stringify({ password: hashedPassword });
+      console.log(`🔒 [LINK] Données d'authentification: ${authData}`);
+      
       await sql`
         INSERT INTO "user_auth_methods" (
           user_id, 
@@ -144,7 +149,7 @@ export async function POST(request: NextRequest) {
           ${userId}, 
           ${authMethodId}, 
           ${email}, 
-          ${JSON.stringify({ password: hashedPassword })}, 
+          ${authData}, 
           true,
           NOW(),
           NOW()
