@@ -11,12 +11,20 @@ interface PitchDeckProps {
 
 export function PitchDeck({ className }: PitchDeckProps) {
   const slidesScrollRef = useRef<HTMLDivElement>(null);
+  const slidesRefs = useRef<(HTMLDivElement | null)[]>([]);
+  
+  // Fonction pour stocker les références des slides sans causer d'erreur de type
+  const setSlideRef = (index: number) => (el: HTMLDivElement | null) => {
+    slidesRefs.current[index] = el;
+  };
+  
   const [isAnimating, setIsAnimating] = useState(false);
   
   // États simplifiés
   const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [currentScrollPosition, setCurrentScrollPosition] = useState(0);
+  // État de transition pour l'animation fluide
+  const [transitionProgress, setTransitionProgress] = useState<{from: number, to: number, progress: number} | null>(null);
   
   // Pitch deck slides data - reste inchangé
   const pitchDeckSlides = [
@@ -30,69 +38,76 @@ export function PitchDeck({ className }: PitchDeckProps) {
     { id: 8, image: "/images/pitch/slide8.jpg", alt: "Try It Yourself" },
   ];
 
-  // Animation fluide améliorée pour le défilement
-  const smoothScrollTo = (targetPosition: number, duration: number = 600) => {
-    if (!slidesScrollRef.current) return;
+  // Animation fluide synchronisée pour le défilement et les transitions visuelles
+  const smoothTransition = (fromIndex: number, toIndex: number, duration: number = 700) => {
+    if (!slidesScrollRef.current || fromIndex === toIndex) return;
     
     setIsAnimating(true);
-    const startPosition = slidesScrollRef.current.scrollLeft;
-    const distance = targetPosition - startPosition;
-    let startTime: number | null = null;
     
-    // Fonction d'animation plus fluide et visuelle
-    const step = (currentTime: number) => {
-      if (!slidesScrollRef.current) return;
+    const startTime = Date.now();
+    const container = slidesScrollRef.current;
+    const startScrollLeft = container.scrollLeft;
+    
+    // Calculer la position cible de défilement
+    const targetSlide = slidesRefs.current[toIndex];
+    if (!targetSlide) {
+      setIsAnimating(false);
+      return;
+    }
+    
+    const slideCenter = targetSlide.offsetLeft + targetSlide.offsetWidth / 2;
+    const containerCenter = container.offsetWidth / 2;
+    const targetScrollLeft = slideCenter - containerCenter;
+    const scrollDistance = targetScrollLeft - startScrollLeft;
+    
+    // Fonction d'animation qui met à jour à la fois le défilement et l'état de transition
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
       
-      if (startTime === null) startTime = currentTime;
-      const elapsed = currentTime - startTime;
-      
-      // easeInOutQuint pour une animation plus dynamique
-      const easeInOutQuint = (t: number): number => {
-        return t < 0.5 
-          ? 16 * t * t * t * t * t 
-          : 1 + 16 * (--t) * t * t * t * t;
+      // Fonction d'accélération pour une animation plus naturelle (cubic-bezier approximation)
+      const ease = (t: number): number => {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       };
       
-      const progress = Math.min(elapsed / duration, 1);
-      const easedProgress = easeInOutQuint(progress);
-      const newPosition = startPosition + distance * easedProgress;
+      const easedProgress = ease(progress);
       
-      slidesScrollRef.current.scrollLeft = newPosition;
-      setCurrentScrollPosition(newPosition);
+      // Mettre à jour la position de défilement
+      const newScrollLeft = startScrollLeft + scrollDistance * easedProgress;
+      if (container) {
+        container.scrollLeft = newScrollLeft;
+      }
+      
+      // Mettre à jour l'état de transition pour les animations visuelles
+      setTransitionProgress({
+        from: fromIndex,
+        to: toIndex,
+        progress: easedProgress
+      });
       
       if (progress < 1) {
-        window.requestAnimationFrame(step);
+        requestAnimationFrame(animate);
       } else {
+        // Animation terminée
+        setActiveIndex(toIndex);
+        setTransitionProgress(null);
         setIsAnimating(false);
       }
     };
     
-    window.requestAnimationFrame(step);
+    // Démarrer l'animation
+    requestAnimationFrame(animate);
   };
   
-  // Fonctions de navigation avec animation améliorée
+  // Fonctions de navigation avec animation synchronisée
   const goToSlide = (index: number) => {
     if (isAnimating) return; // Éviter les actions pendant l'animation
     
     // S'assurer que l'index est dans les limites
     const validIndex = Math.max(0, Math.min(index, pitchDeckSlides.length - 1));
-    setActiveIndex(validIndex);
     
-    if (slidesScrollRef.current) {
-      const slideElements = Array.from(slidesScrollRef.current.querySelectorAll('.slide-item'));
-      if (slideElements[validIndex]) {
-        const slide = slideElements[validIndex] as HTMLElement;
-        const container = slidesScrollRef.current;
-        
-        // Calculer précisément le centre de la slide dans le conteneur
-        const slideCenter = slide.offsetLeft + slide.offsetWidth / 2;
-        const containerCenter = container.offsetWidth / 2;
-        const targetScrollLeft = slideCenter - containerCenter;
-        
-        // Animation fluide vers la position cible
-        smoothScrollTo(targetScrollLeft);
-      }
-    }
+    // Démarrer la transition animée entre l'index actuel et le nouvel index
+    smoothTransition(activeIndex, validIndex);
   };
   
   const goToNext = () => {
@@ -111,7 +126,14 @@ export function PitchDeck({ className }: PitchDeckProps) {
   useEffect(() => {
     if (slidesScrollRef.current) {
       // Centrer la première slide après le montage
-      setTimeout(() => goToSlide(0), 200);
+      setTimeout(() => {
+        const firstSlide = slidesRefs.current[0];
+        if (firstSlide && slidesScrollRef.current) {
+          const slideCenter = firstSlide.offsetLeft + firstSlide.offsetWidth / 2;
+          const containerCenter = slidesScrollRef.current.offsetWidth / 2;
+          slidesScrollRef.current.scrollLeft = slideCenter - containerCenter;
+        }
+      }, 200);
     }
   }, []);
   
@@ -133,20 +155,22 @@ export function PitchDeck({ className }: PitchDeckProps) {
     };
   }, [isFullscreenOpen, activeIndex, isAnimating]);
   
-  // Synchroniser l'index actif avec la position de défilement
+  // Synchroniser l'index actif avec la position de défilement lors du défilement manuel
   useEffect(() => {
     const handleScroll = () => {
-      if (!slidesScrollRef.current || isAnimating) return;
+      if (!slidesScrollRef.current || isAnimating || transitionProgress) return;
       
       const container = slidesScrollRef.current;
-      const slides = Array.from(container.querySelectorAll('.slide-item'));
+      const slidesElements = slidesRefs.current.filter(Boolean) as HTMLDivElement[];
       const containerCenter = container.getBoundingClientRect().left + container.offsetWidth / 2;
       
       // Trouver la slide la plus proche du centre
       let closestSlide = 0;
       let closestDistance = Infinity;
       
-      slides.forEach((slide, index) => {
+      slidesElements.forEach((slide, index) => {
+        if (!slide) return;
+        
         const slideRect = slide.getBoundingClientRect();
         const slideCenter = slideRect.left + slideRect.width / 2;
         const distance = Math.abs(slideCenter - containerCenter);
@@ -173,7 +197,52 @@ export function PitchDeck({ className }: PitchDeckProps) {
         container.removeEventListener('scroll', handleScroll);
       }
     };
-  }, [activeIndex, isAnimating]);
+  }, [activeIndex, isAnimating, transitionProgress]);
+  
+  // Fonction pour calculer les propriétés visuelles d'une slide pendant l'animation
+  const calculateSlideStyles = (index: number) => {
+    // Si nous ne sommes pas en transition, simplement appliquer les styles statiques
+    if (!transitionProgress) {
+      const isActive = index === activeIndex;
+      return {
+        opacity: isActive ? 1 : 0.6,
+        transform: isActive ? 'scale(1.02)' : 'scale(0.95)',
+        zIndex: isActive ? 10 : 0,
+        boxShadow: isActive ? '0 10px 25px rgba(0, 0, 0, 0.1)' : 'none'
+      };
+    }
+    
+    const { from, to, progress } = transitionProgress;
+    
+    // Pour la slide de départ
+    if (index === from) {
+      return {
+        opacity: 1 - (0.4 * progress), // 1 -> 0.6
+        transform: `scale(${1.02 - (0.07 * progress)})`, // 1.02 -> 0.95
+        zIndex: 10 - Math.floor(10 * progress), // 10 -> 0
+        boxShadow: `0 ${10 - (10 * progress)}px ${25 - (25 * progress)}px rgba(0, 0, 0, ${0.1 - (0.1 * progress)})`
+      };
+    }
+    
+    // Pour la slide d'arrivée
+    if (index === to) {
+      return {
+        opacity: 0.6 + (0.4 * progress), // 0.6 -> 1
+        transform: `scale(${0.95 + (0.07 * progress)})`, // 0.95 -> 1.02
+        zIndex: Math.floor(10 * progress), // 0 -> 10
+        boxShadow: `0 ${10 * progress}px ${25 * progress}px rgba(0, 0, 0, ${0.1 * progress})`
+      };
+    }
+    
+    // Pour les autres slides, rester statiques
+    const isActive = index === activeIndex;
+    return {
+      opacity: isActive ? 1 : 0.6,
+      transform: isActive ? 'scale(1.02)' : 'scale(0.95)',
+      zIndex: isActive ? 10 : 0,
+      boxShadow: isActive ? '0 10px 25px rgba(0, 0, 0, 0.1)' : 'none'
+    };
+  };
   
   return (
     <div className={`w-full py-12 md:py-24 lg:py-32 ${className}`}>
@@ -218,31 +287,33 @@ export function PitchDeck({ className }: PitchDeckProps) {
           {/* Conteneur de slides avec défilement horizontal */}
           <div 
             ref={slidesScrollRef}
-            className="flex overflow-x-auto snap-x hide-scrollbar space-x-10 pb-10 px-2 items-center"
+            className="flex overflow-x-auto snap-none hide-scrollbar space-x-10 pb-10 px-2 items-center"
             style={{ 
               scrollbarWidth: 'none', 
               msOverflowStyle: 'none',
               minHeight: '650px',
               paddingLeft: '140px',
               paddingRight: '140px',
-              scrollBehavior: isAnimating ? 'auto' : 'smooth'
             }}
           >
             {pitchDeckSlides.map((slide, index) => {
-              // Opacité et transformation basées sur l'index actif
-              const isActive = index === activeIndex;
+              // Calculer les styles de transition dynamiques
+              const slideStyles = calculateSlideStyles(index);
+              const isActive = !transitionProgress && index === activeIndex;
               
               return (
                 <div 
-                  key={slide.id} 
-                  className={`flex-shrink-0 snap-center rounded-xl overflow-hidden border shadow-md group relative slide-item
+                  key={slide.id}
+                  ref={setSlideRef(index)}
+                  className={`flex-shrink-0 rounded-xl overflow-hidden border shadow-md group relative slide-item
                     w-full sm:w-[550px] md:w-[700px] lg:w-[900px] h-[400px] md:h-[520px]
-                    ${isActive ? 'ring-2 ring-primary ring-offset-2 z-10' : ''}`}
+                    ${isActive ? 'ring-2 ring-primary ring-offset-2' : ''}`}
                   style={{
-                    opacity: isActive ? 1 : 0.6,
-                    transform: isActive ? 'scale(1.02)' : 'scale(0.95)',
-                    transition: 'all 0.5s cubic-bezier(0.22, 1, 0.36, 1)',
-                    boxShadow: isActive ? '0 10px 25px rgba(0, 0, 0, 0.1)' : 'none'
+                    opacity: slideStyles.opacity,
+                    transform: slideStyles.transform,
+                    transition: isAnimating ? 'none' : 'all 0.5s cubic-bezier(0.22, 1, 0.36, 1)',
+                    boxShadow: slideStyles.boxShadow,
+                    zIndex: slideStyles.zIndex
                   }}
                   onClick={() => {
                     if (isAnimating) return;
@@ -254,7 +325,7 @@ export function PitchDeck({ className }: PitchDeckProps) {
                       // Attendre la fin de l'animation de défilement avant d'ouvrir le plein écran
                       setTimeout(() => {
                         setIsFullscreenOpen(true);
-                      }, 600);
+                      }, 700);
                     } else {
                       // Si la slide est déjà active, simplement ouvrir le plein écran
                       setIsFullscreenOpen(true);
@@ -308,19 +379,40 @@ export function PitchDeck({ className }: PitchDeckProps) {
 
           {/* Indicateur de pagination */}
           <div className="flex justify-center items-center mt-6 space-x-2">
-            {pitchDeckSlides.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => goToSlide(index)}
-                className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                  index === activeIndex 
-                    ? 'bg-primary w-8' 
-                    : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                }`}
-                aria-label={`Go to slide ${index + 1}`}
-                disabled={isAnimating}
-              />
-            ))}
+            {pitchDeckSlides.map((_, index) => {
+              // Calcul de l'indicateur actif avec transition fluide
+              let indicatorWidth = !transitionProgress && index === activeIndex ? 32 : 10; // en pixels
+              let indicatorBg = !transitionProgress && index === activeIndex 
+                ? 'hsl(var(--primary))' 
+                : 'hsl(var(--muted-foreground) / 0.3)';
+              
+              if (transitionProgress) {
+                if (index === transitionProgress.from) {
+                  // L'indicateur actuel qui devient inactif
+                  indicatorWidth = 32 - (22 * transitionProgress.progress);
+                  indicatorBg = `hsl(var(--primary) / ${1 - (0.7 * transitionProgress.progress)})`;
+                } else if (index === transitionProgress.to) {
+                  // L'indicateur qui devient actif
+                  indicatorWidth = 10 + (22 * transitionProgress.progress);
+                  indicatorBg = `hsl(var(--primary) / ${0.3 + (0.7 * transitionProgress.progress)})`;
+                }
+              }
+              
+              return (
+                <button
+                  key={index}
+                  onClick={() => goToSlide(index)}
+                  className={`h-2.5 rounded-full hover:bg-muted-foreground/50`}
+                  style={{
+                    width: `${indicatorWidth}px`,
+                    backgroundColor: indicatorBg,
+                    transition: isAnimating ? 'none' : 'all 0.3s ease-out'
+                  }}
+                  aria-label={`Go to slide ${index + 1}`}
+                  disabled={isAnimating}
+                />
+              );
+            })}
           </div>
         </div>
 
@@ -343,16 +435,26 @@ export function PitchDeck({ className }: PitchDeckProps) {
                 </Button>
 
                 {/* Image plein écran avec transition */}
-                <div className="relative w-[94vw] h-[94vh] transition-opacity duration-300">
-                  <Image
-                    src={pitchDeckSlides[activeIndex].image}
-                    alt={pitchDeckSlides[activeIndex].alt}
-                    fill
-                    style={{ objectFit: 'contain' }}
-                    quality={90}
-                    priority
-                    className="transition-opacity duration-300"
-                  />
+                <div className="relative w-[94vw] h-[94vh]">
+                  {pitchDeckSlides.map((slide, index) => (
+                    <div 
+                      key={slide.id}
+                      className="absolute inset-0 transition-opacity duration-300 ease-in-out"
+                      style={{
+                        opacity: index === activeIndex ? 1 : 0,
+                        visibility: index === activeIndex ? 'visible' : 'hidden',
+                      }}
+                    >
+                      <Image
+                        src={slide.image}
+                        alt={slide.alt}
+                        fill
+                        style={{ objectFit: 'contain' }}
+                        quality={90}
+                        priority={index === activeIndex}
+                      />
+                    </div>
+                  ))}
                 </div>
 
                 {/* Navigation suivant */}
@@ -387,24 +489,44 @@ export function PitchDeck({ className }: PitchDeckProps) {
                   <p className="text-sm text-white/70">Slide {activeIndex + 1} of {pitchDeckSlides.length}</p>
                 </div>
                 
-                {/* Indicateurs de pagination */}
+                {/* Indicateurs de pagination en mode plein écran */}
                 <div className="absolute bottom-2 left-0 right-0">
                   <div className="flex justify-center items-center space-x-2">
-                    {pitchDeckSlides.map((_, index) => (
-                      <button
-                        key={index}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          goToSlide(index);
-                        }}
-                        className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                          index === activeIndex 
-                            ? 'bg-white w-6' 
-                            : 'bg-white/30 hover:bg-white/60'
-                        }`}
-                        aria-label={`Go to slide ${index + 1}`}
-                      />
-                    ))}
+                    {pitchDeckSlides.map((_, index) => {
+                      // Calcul de l'indicateur actif avec transition fluide pour le mode plein écran
+                      let dotWidth = !transitionProgress && index === activeIndex ? 24 : 8; // en pixels
+                      let dotBg = !transitionProgress && index === activeIndex 
+                        ? 'rgba(255, 255, 255, 1)' 
+                        : 'rgba(255, 255, 255, 0.3)';
+                      
+                      if (transitionProgress) {
+                        if (index === transitionProgress.from) {
+                          dotWidth = 24 - (16 * transitionProgress.progress);
+                          dotBg = `rgba(255, 255, 255, ${1 - (0.7 * transitionProgress.progress)})`;
+                        } else if (index === transitionProgress.to) {
+                          dotWidth = 8 + (16 * transitionProgress.progress);
+                          dotBg = `rgba(255, 255, 255, ${0.3 + (0.7 * transitionProgress.progress)})`;
+                        }
+                      }
+                      
+                      return (
+                        <button
+                          key={index}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            goToSlide(index);
+                          }}
+                          className="h-2 rounded-full hover:bg-white/60"
+                          style={{
+                            width: `${dotWidth}px`,
+                            backgroundColor: dotBg,
+                            transition: isAnimating ? 'none' : 'all 0.3s ease-out'
+                          }}
+                          aria-label={`Go to slide ${index + 1}`}
+                          disabled={isAnimating}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               </div>
