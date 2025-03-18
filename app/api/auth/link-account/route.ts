@@ -3,9 +3,13 @@ import postgres from 'postgres';
 import { createHash } from 'crypto';
 import { customAlphabet } from 'nanoid';
 import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
 
-// Connexion à la base de données Supabase
-const sql = postgres(process.env.DATABASE_URL || '');
+// Spécifier le runtime Node.js
+export const runtime = 'nodejs';
+
+// Utiliser notre module db.js centralisé pour éviter de multiplier les connexions
+import sql from '@/lib/db';
 
 // Configurer nanoid pour générer des identifiants
 const nanoid = customAlphabet('1234567890abcdefghijklmnopqrstuvwxyz', 10);

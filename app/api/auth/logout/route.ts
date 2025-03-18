@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import postgres from 'postgres';
 
-// Connexion à la base de données Supabase
-const sql = postgres(process.env.DATABASE_URL || '');
+// Utiliser notre module db.js centralisé pour éviter de multiplier les connexions
+import sql from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {

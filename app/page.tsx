@@ -39,6 +39,7 @@ export default function Home() {
   const slidesScrollRef = useRef<HTMLDivElement>(null);
   const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
   const [fullscreenSlide, setFullscreenSlide] = useState<{ id: number; image: string; alt: string } | null>(null);
+  const [activeSlideId, setActiveSlideId] = useState(1); // ID de la slide active dans la vue normale
   
   // Effet pour charger le script Twitter
   useEffect(() => {
@@ -98,6 +99,9 @@ export default function Home() {
           const prevIndex = currentIndex > 0 ? currentIndex - 1 : pitchDeckSlides.length - 1;
           setFullscreenSlide(pitchDeckSlides[prevIndex]);
           
+          // Mettre à jour également la slide active dans la vue normale
+          setActiveSlideId(pitchDeckSlides[prevIndex].id);
+          
           // Synchroniser le carrousel normal
           if (slidesScrollRef.current) {
             const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
@@ -112,7 +116,43 @@ export default function Home() {
           const nextIndex = currentIndex < pitchDeckSlides.length - 1 ? currentIndex + 1 : 0;
           setFullscreenSlide(pitchDeckSlides[nextIndex]);
           
+          // Mettre à jour également la slide active dans la vue normale
+          setActiveSlideId(pitchDeckSlides[nextIndex].id);
+          
           // Synchroniser le carrousel normal
+          if (slidesScrollRef.current) {
+            const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
+            if (slideElements[nextIndex]) {
+              slideElements[nextIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            }
+          }
+        }
+      }
+      
+      // Navigation avec les flèches gauche et droite même en mode normal
+      if (!isFullscreenOpen) {
+        // Flèche gauche pour la slide précédente
+        if (e.key === 'ArrowLeft') {
+          const currentIndex = pitchDeckSlides.findIndex(s => s.id === activeSlideId);
+          const prevIndex = currentIndex > 0 ? currentIndex - 1 : pitchDeckSlides.length - 1;
+          setActiveSlideId(pitchDeckSlides[prevIndex].id);
+          
+          // Synchroniser le carrousel
+          if (slidesScrollRef.current) {
+            const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
+            if (slideElements[prevIndex]) {
+              slideElements[prevIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            }
+          }
+        }
+        
+        // Flèche droite pour la slide suivante
+        if (e.key === 'ArrowRight') {
+          const currentIndex = pitchDeckSlides.findIndex(s => s.id === activeSlideId);
+          const nextIndex = currentIndex < pitchDeckSlides.length - 1 ? currentIndex + 1 : 0;
+          setActiveSlideId(pitchDeckSlides[nextIndex].id);
+          
+          // Synchroniser le carrousel
           if (slidesScrollRef.current) {
             const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
             if (slideElements[nextIndex]) {
@@ -127,7 +167,7 @@ export default function Home() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isFullscreenOpen, fullscreenSlide, pitchDeckSlides]);
+  }, [isFullscreenOpen, fullscreenSlide, pitchDeckSlides, activeSlideId]);
   
   // Effet pour nettoyer les classes problématiques
   useEffect(() => {
@@ -173,14 +213,72 @@ export default function Home() {
   const scrollLeft = () => {
     if (slidesScrollRef.current) {
       slidesScrollRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+      
+      // Mettre à jour l'ID de la slide active
+      const currentIndex = pitchDeckSlides.findIndex(s => s.id === activeSlideId);
+      const prevIndex = currentIndex > 0 ? currentIndex - 1 : pitchDeckSlides.length - 1;
+      setActiveSlideId(pitchDeckSlides[prevIndex].id);
     }
   };
 
   const scrollRight = () => {
     if (slidesScrollRef.current) {
       slidesScrollRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+      
+      // Mettre à jour l'ID de la slide active
+      const currentIndex = pitchDeckSlides.findIndex(s => s.id === activeSlideId);
+      const nextIndex = currentIndex < pitchDeckSlides.length - 1 ? currentIndex + 1 : 0;
+      setActiveSlideId(pitchDeckSlides[nextIndex].id);
     }
   };
+  
+  // Effet pour détecter quelle slide est visible dans le viewport
+  useEffect(() => {
+    const handleScroll = () => {
+      if (slidesScrollRef.current) {
+        const container = slidesScrollRef.current;
+        const slides = container.querySelectorAll('.snap-center');
+        
+        // Trouver l'élément le plus visible
+        let maxVisibleSlide = null;
+        let maxVisibleArea = 0;
+        
+        slides.forEach((slide, index) => {
+          const rect = slide.getBoundingClientRect();
+          const containerRect = container.getBoundingClientRect();
+          
+          // Calculer la surface visible de la slide dans le conteneur
+          const leftVisible = Math.max(rect.left, containerRect.left);
+          const rightVisible = Math.min(rect.right, containerRect.right);
+          const visibleWidth = Math.max(0, rightVisible - leftVisible);
+          
+          // Si cette slide est plus visible que la précédente
+          if (visibleWidth > maxVisibleArea) {
+            maxVisibleArea = visibleWidth;
+            maxVisibleSlide = index;
+          }
+        });
+        
+        // Si on a trouvé une slide visible, mettre à jour l'état
+        if (maxVisibleSlide !== null) {
+          setActiveSlideId(pitchDeckSlides[maxVisibleSlide].id);
+        }
+      }
+    };
+    
+    const container = slidesScrollRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      // Vérifier initialement quelle slide est visible
+      handleScroll();
+    }
+    
+    return () => {
+      if (container) {
+        container.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [pitchDeckSlides]);
 
   return (
     <div className="flex flex-col min-h-screen font-mono">
@@ -538,28 +636,45 @@ export default function Home() {
               {/* Conteneur de slides avec défilement horizontal */}
               <div 
                 ref={slidesScrollRef}
-                className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar space-x-6 pb-8 px-2"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                className="flex overflow-x-auto snap-x hide-scrollbar space-x-6 pb-8 px-2"
+                style={{ 
+                  scrollbarWidth: 'none', 
+                  msOverflowStyle: 'none',
+                  scrollBehavior: 'smooth' 
+                }}
               >
                 {pitchDeckSlides.map((slide) => (
                   <div 
                     key={slide.id} 
-                    className="flex-shrink-0 snap-center w-full sm:w-[500px] md:w-[600px] lg:w-[800px] h-[400px] md:h-[500px] rounded-xl overflow-hidden border shadow-sm group relative"
+                    className={`flex-shrink-0 snap-center rounded-xl overflow-hidden border shadow-sm group relative transition-all duration-700 ease-out will-change-transform 
+                      ${slide.id === activeSlideId 
+                        ? 'w-full sm:w-[550px] md:w-[660px] lg:w-[880px] h-[440px] md:h-[550px] scale-[1.05] z-10 opacity-100' 
+                        : 'w-full sm:w-[450px] md:w-[540px] lg:w-[720px] h-[360px] md:h-[450px] scale-[0.95] opacity-80'
+                      }`}
                   >
                     <div 
                       className="w-full h-full relative bg-card cursor-pointer" 
-                      onClick={() => {
+                      onClick={(e) => {
+                        // Arrêter la propagation pour éviter que l'événement atteigne le div parent
+                        e.stopPropagation();
+                        
+                        // Mettre à jour l'état du mode plein écran
                         setFullscreenSlide(slide);
                         setIsFullscreenOpen(true);
                         
-                        // S'assurer que cette slide est visible dans le carrousel normal
-                        if (slidesScrollRef.current) {
-                          const slideIndex = pitchDeckSlides.findIndex(s => s.id === slide.id);
-                          const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
-                          if (slideElements[slideIndex]) {
-                            slideElements[slideIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+                        // S'assurer que cette slide est active dans le carrousel normal
+                        setActiveSlideId(slide.id);
+                        
+                        // Synchroniser le scroll du carrousel normal
+                        setTimeout(() => {
+                          if (slidesScrollRef.current) {
+                            const slideIndex = pitchDeckSlides.findIndex(s => s.id === slide.id);
+                            const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
+                            if (slideElements[slideIndex]) {
+                              slideElements[slideIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+                            }
                           }
-                        }
+                        }, 10);
                       }}
                     >
                       <Image
@@ -585,7 +700,7 @@ export default function Home() {
                       
                       {/* Indicator for fullscreen viewing */}
                       <div className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-maximize">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-maximize">
                           <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
                           <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
                           <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
@@ -608,7 +723,6 @@ export default function Home() {
               <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
                 <div className="absolute inset-0 flex items-center justify-center" onClick={() => setIsFullscreenOpen(false)}>
                   <div className="relative w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-                    {/* Navigation précédent */}
                     <Button 
                       variant="ghost" 
                       size="icon" 
@@ -618,13 +732,18 @@ export default function Home() {
                         const prevIndex = currentIndex > 0 ? currentIndex - 1 : pitchDeckSlides.length - 1;
                         setFullscreenSlide(pitchDeckSlides[prevIndex]);
                         
-                        // Synchroniser le scroll du carrousel normal
-                        if (slidesScrollRef.current) {
-                          const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
-                          if (slideElements[prevIndex]) {
-                            slideElements[prevIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+                        // Mettre à jour également la slide active dans la vue normale
+                        setActiveSlideId(pitchDeckSlides[prevIndex].id);
+                        
+                        // Synchroniser le scroll du carrousel normal avec un léger délai
+                        setTimeout(() => {
+                          if (slidesScrollRef.current) {
+                            const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
+                            if (slideElements[prevIndex]) {
+                              slideElements[prevIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+                            }
                           }
-                        }
+                        }, 10);
                       }}
                     >
                       <ChevronLeft className="h-8 w-8 text-white" />
@@ -650,13 +769,18 @@ export default function Home() {
                         const nextIndex = currentIndex < pitchDeckSlides.length - 1 ? currentIndex + 1 : 0;
                         setFullscreenSlide(pitchDeckSlides[nextIndex]);
                         
-                        // Synchroniser le scroll du carrousel normal
-                        if (slidesScrollRef.current) {
-                          const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
-                          if (slideElements[nextIndex]) {
-                            slideElements[nextIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+                        // Mettre à jour également la slide active dans la vue normale
+                        setActiveSlideId(pitchDeckSlides[nextIndex].id);
+                        
+                        // Synchroniser le scroll du carrousel normal avec un léger délai
+                        setTimeout(() => {
+                          if (slidesScrollRef.current) {
+                            const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
+                            if (slideElements[nextIndex]) {
+                              slideElements[nextIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+                            }
                           }
-                        }
+                        }, 10);
                       }}
                     >
                       <ChevronRight className="h-8 w-8 text-white" />

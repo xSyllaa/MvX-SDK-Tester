@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import postgres from 'postgres';
 
 // Connexion à la base de données Supabase
-const sql = postgres(process.env.DATABASE_URL || '');
+// Utiliser notre module db.js centralisé pour éviter de multiplier les connexions
+import sql from '@/lib/db';
 
 export async function GET(req: NextRequest) {
   try {
@@ -58,10 +59,14 @@ export async function GET(req: NextRequest) {
       WHERE uam.user_id = ${userId}
     `;
 
-    // Mettre à jour la date de dernière utilisation de la session
+    // Mettre à jour la date d'expiration de la session pour prolonger sa durée de vie
+    // au lieu de mettre à jour la colonne "last_used" qui n'existe pas
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30); // Expire dans 30 jours
+    
     await sql`
       UPDATE "sessions" 
-      SET last_used = NOW() 
+      SET expires_at = ${expiresAt.toISOString()}
       WHERE id = ${session.id}
     `;
 

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash } from 'crypto';
 import postgres from 'postgres';
+import { v4 as uuidv4 } from 'uuid';
 
-// Connexion à la base de données Supabase
-const sql = postgres(process.env.DATABASE_URL || '');
+// Utiliser notre module db.js centralisé pour éviter de multiplier les connexions
+import sql from '@/lib/db';
 
 // Fonction pour hacher le mot de passe
 function hashPassword(password: string): string {
