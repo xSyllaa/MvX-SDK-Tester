@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]/options';
 import { Session } from 'next-auth';
 import { SubscriptionPlanType, getPlanLimits } from '@/lib/subscription-plans';
+import { supabaseAdmin } from '@/lib/supabase';
 
 // Le runtime Node.js est configuré globalement dans next.config.js
 // export const runtime = 'nodejs';
@@ -32,45 +33,37 @@ export async function GET(req: NextRequest) {
     }
     
     // Récupérer le forfait de l'utilisateur
-    const userPlanResponse = await fetch('http://localhost:8765/query', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: `
-          SELECT subscription_plan FROM "users" WHERE id = '${userId}'
-        `
-      })
-    });
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('subscription_plan')
+      .eq('id', userId)
+      .single();
     
-    const planResult = await userPlanResponse.json();
-    const userPlan = planResult?.results?.[0]?.subscription_plan || SubscriptionPlanType.FREE;
+    if (userError) {
+      console.error('Error fetching user plan:', userError);
+      return NextResponse.json(
+        { error: 'Failed to fetch user data' },
+        { status: 500 }
+      );
+    }
     
-    // Récupérer l'utilisation de l'IA pour cet utilisateur
-    const mcpResponse = await fetch('http://localhost:8765/query', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: `
-          SELECT * FROM get_user_api_usage('${userId}')
-        `
-      })
-    });
+    const userPlan = userData?.subscription_plan || SubscriptionPlanType.FREE;
     
-    const result = await mcpResponse.json();
+    // Récupérer l'utilisation de l'API pour cet utilisateur
+    const { data: usageData, error: usageError } = await supabaseAdmin.rpc(
+      'get_user_api_usage',
+      { p_user_id: userId }
+    );
     
-    if (!mcpResponse.ok) {
-      console.error('Error fetching AI usage:', result);
+    if (usageError) {
+      console.error('Error fetching API usage:', usageError);
       return NextResponse.json(
         { error: 'Failed to fetch API usage data' },
         { status: 500 }
       );
     }
     
-    const usage = result.results?.[0];
+    const usage = usageData && usageData.length > 0 ? usageData[0] : null;
     
     // Récupérer les limites du forfait de l'utilisateur
     const limits = getPlanLimits(userPlan as SubscriptionPlanType);

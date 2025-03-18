@@ -88,7 +88,18 @@ DATABASE_URL=your_supabase_url_here
 
 # MultiversX Network
 NEXT_PUBLIC_MULTIVERSX_NETWORK=devnet
+
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ```
+
+2. For Supabase setup, you need to:
+   - Create a project on [Supabase](https://supabase.com/)
+   - Run the SQL scripts in the `db` folder to set up required tables and functions
+   - Add your Supabase project URL and keys to the environment variables
+   - Ensure the service role key is kept secure and only used in server-side code
 
 ### Run the Development Server
 
