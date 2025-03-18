@@ -12,6 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { AIUsageStatus } from '@/app/components/AIUsageStatus';
+import { useRouter } from 'next/navigation';
+import { signIn, useSession } from 'next-auth/react';
+import { useUser } from '@/hooks/use-user';
 
 // Type pour les props des boutons de connexion
 type WalletConnectLoginButtonPropsType = {
@@ -33,6 +36,9 @@ export function ConnectWallet() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const callbackRoute = '/';
+  const router = useRouter();
+  const { data: session } = useSession();
+  const { isAuthenticated, redirectToLogin } = useUser();
 
   const {
     user,
@@ -199,6 +205,18 @@ export function ConnectWallet() {
     setIsAccountOpen(false);
   };
   
+  // Fonction pour naviguer vers la page du compte
+  const handleAccountClick = () => {
+    // Utiliser notre hook useUser pour une vérification unifiée de l'authentification
+    if (isAuthenticated) {
+      // Si l'utilisateur est authentifié, le rediriger directement vers la page du compte
+      router.push('/account');
+    } else {
+      // Sinon, le rediriger vers la page de connexion avec la page du compte comme destination
+      redirectToLogin('/account');
+    }
+  };
+
   // Fonction pour afficher un message d'erreur formaté
   const renderErrorMessage = (message: string | null) => {
     if (!message) return null;
@@ -359,7 +377,7 @@ export function ConnectWallet() {
         <Button
           variant="outline"
           className="px-3 py-2 h-auto"
-          onClick={() => setIsAccountOpen(true)}
+          onClick={handleAccountClick}
           disabled={isLoading}
         >
           <User className="mr-2 h-4 w-4" />
@@ -375,68 +393,6 @@ export function ConnectWallet() {
           <Wallet className="h-5 w-5" />
         </Button>
       )}
-
-      {/* Modal de compte utilisateur */}
-      <Dialog open={isAccountOpen} onOpenChange={setIsAccountOpen}>
-        <DialogContent className="sm:max-w-[380px] max-w-[90vw] w-full p-0 gap-0 max-h-[90vh] overflow-y-auto overflow-x-hidden">
-          <DialogHeader className="p-3 border-b sticky top-0 bg-background z-10">
-            <div>
-              <DialogTitle className="text-base font-medium">My Account</DialogTitle>
-              <DialogDescription className="text-xs mt-0.5">
-                Manage your account settings
-              </DialogDescription>
-            </div>
-          </DialogHeader>
-
-          <div className="flex flex-col gap-3 p-3 w-full overflow-x-hidden">
-            {/* Info utilisateur */}
-            <div className="p-3 rounded-lg bg-card">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h2 className="font-medium">{user?.displayName || user?.username}</h2>
-                    <p className="text-xs text-muted-foreground">{user?.email || 'No email'}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Options de compte */}
-            <div className="p-3 rounded-lg bg-card">
-              <h3 className="text-xs font-medium mb-2">Account Options</h3>
-              
-              {/* Ici, vous pourrez ajouter d'autres options de compte selon vos besoins */}
-              <div className="space-y-2">
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start h-9 text-xs"
-                  size="sm"
-                >
-                  <Settings className="mr-2 h-3 w-3" />
-                  Account Settings
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start h-9 text-xs text-destructive hover:text-destructive"
-                  size="sm"
-                  onClick={handleLogout}
-                  disabled={isLoading}
-                >
-                  <LogOut className="mr-2 h-3 w-3" />
-                  {isLoading ? 'Logging out...' : 'Logout'}
-                </Button>
-              </div>
-            </div>
-
-            {/* AI Usage Status */}
-            <AIUsageStatus className="bg-card" />
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Modal de connexion */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>

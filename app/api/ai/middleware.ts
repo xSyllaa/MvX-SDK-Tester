@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/options';
 import { Session } from 'next-auth';
 import { SubscriptionPlanType, getPlanLimits, checkLimitsExceeded } from '@/lib/subscription-plans';
+import { supabaseAdmin } from '@/lib/supabase';
 
 // Le runtime Node.js est configuré globalement dans next.config.js
 // export const runtime = 'nodejs';
@@ -32,51 +33,40 @@ export async function rateLimit(req: NextRequest) {
       }, { status: 401 });
     }
     
-    // Pour les utilisateurs authentifiés, vérifier le quota dans la base de données
-    const mcpResponse = await fetch('http://localhost:8765/query', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: `
-          SELECT * FROM get_user_api_usage('${userId}')
-        `
-      })
-    });
+    // Pour les utilisateurs authentifiés, récupérer l'utilisation de l'API
+    const { data: usageData, error: usageError } = await supabaseAdmin.rpc(
+      'get_user_api_usage', 
+      { p_user_id: userId }
+    );
     
-    const result = await mcpResponse.json();
-    
-    if (!mcpResponse.ok) {
-      console.error('Error checking rate limit:', result);
+    if (usageError) {
+      console.error('Error checking rate limit:', usageError);
       // En cas d'erreur, autoriser la requête par défaut
       return NextResponse.next();
     }
     
     // Récupérer le plan d'abonnement de l'utilisateur
-    const userPlanResponse = await fetch('http://localhost:8765/query', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: `
-          SELECT subscription_plan FROM "users" WHERE id = '${userId}'
-        `
-      })
-    });
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('subscription_plan')
+      .eq('id', userId)
+      .single();
     
-    const planResult = await userPlanResponse.json();
-    const userPlan = planResult?.results?.[0]?.subscription_plan || SubscriptionPlanType.FREE;
+    if (userError) {
+      console.error('Error fetching user data:', userError);
+      // En cas d'erreur, autoriser la requête par défaut
+      return NextResponse.next();
+    }
     
-    const usage = result.results?.[0];
+    const userPlan = userData?.subscription_plan || SubscriptionPlanType.FREE;
+    const usage = usageData && usageData.length > 0 ? usageData[0] : null;
     
     if (!usage) {
       // Pas encore d'enregistrement d'utilisation, autoriser la requête
       return NextResponse.next();
     }
     
-    // Vérifier si l'utilisateur a dépassé toutes les limites
+    // Vérifier si l'utilisateur a dépassé les limites
     const usageStats = {
       daily: usage.daily_count || 0,
       weekly: usage.weekly_count || 0,
@@ -93,16 +83,18 @@ export async function rateLimit(req: NextRequest) {
       
       if (limitStatus.daily) {
         message = `You have reached your daily limit of ${limits.daily} AI requests.`;
-        resetTime = new Date(new Date().setHours(24, 0, 0, 0)).toISOString();
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+        resetTime = endOfDay.toISOString();
       } else if (limitStatus.weekly) {
         message = `You have reached your weekly limit of ${limits.weekly} AI requests.`;
         
-        // Calculer le début de la semaine prochaine (à partir d'aujourd'hui + 7 jours)
+        // Calculer le début de la semaine prochaine (dimanche prochain)
         const now = new Date();
-        const daysUntilNextWeek = 7 - now.getDay();
+        const daysUntilSunday = 7 - now.getDay();
         const nextWeek = new Date(now);
-        nextWeek.setDate(now.getDate() + daysUntilNextWeek);
-        nextWeek.setHours(0, 0, 0, 0);
+        nextWeek.setDate(now.getDate() + daysUntilSunday);
+        nextWeek.setHours(23, 59, 59, 999);
         resetTime = nextWeek.toISOString();
       } else if (limitStatus.monthly) {
         message = `You have reached your monthly limit of ${limits.monthly} AI requests.`;
@@ -130,18 +122,17 @@ export async function rateLimit(req: NextRequest) {
       );
     }
     
-    // Log cette requête avant de permettre la requête
-    await fetch('http://localhost:8765/query', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: `SELECT log_api_request('${userId}', 'ai', '${JSON.stringify({
-          path: req.nextUrl.pathname,
-          method: req.method
-        }).replace(/'/g, "''")}', '${userPlan}')`
-      })
+    // Enregistrer cette requête avant de l'autoriser
+    const requestData = {
+      path: req.nextUrl.pathname,
+      method: req.method
+    };
+    
+    await supabaseAdmin.rpc('log_api_request', {
+      p_user_id: userId,
+      p_request_type: 'ai',
+      p_request_data: requestData,
+      p_subscription_plan: userPlan
     });
     
     // Permettre la requête
