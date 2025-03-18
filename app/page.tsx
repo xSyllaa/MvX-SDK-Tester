@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link"
-import { Search, ArrowRight, Code, Database, Layers, Share2, Plus, Users, Trophy, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, ArrowRight, Code, Database, Layers, Share2, Plus, Users, Trophy } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { motion } from "framer-motion"
@@ -9,6 +9,7 @@ import { useInView } from "framer-motion"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
+import { PitchDeck } from "@/app/components/PitchDeck"
 
 // Composant pour animer les sections au défilement
 function AnimatedSection({ children, className, delay = 0 }: { 
@@ -36,10 +37,6 @@ export default function Home() {
   const router = useRouter();
   const [topSearchQuery, setTopSearchQuery] = useState("");
   const [bottomSearchQuery, setBottomSearchQuery] = useState("");
-  const slidesScrollRef = useRef<HTMLDivElement>(null);
-  const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
-  const [fullscreenSlide, setFullscreenSlide] = useState<{ id: number; image: string; alt: string } | null>(null);
-  const [activeSlideId, setActiveSlideId] = useState(1); // ID de la slide active dans la vue normale
   
   // Effet pour charger le script Twitter
   useEffect(() => {
@@ -70,104 +67,6 @@ export default function Home() {
       }
     };
   }, []);
-  
-  // Pitch deck slides data
-  const pitchDeckSlides = [
-    { id: 1, image: "/images/pitch/slide1.jpg", alt: "Presentation" },
-    { id: 2, image: "/images/pitch/slide2.jpg", alt: "Overview" },
-    { id: 3, image: "/images/pitch/slide3.jpg", alt: "Key Features" },
-    { id: 4, image: "/images/pitch/slide4.jpg", alt: "SDK and ABI Analyzer" },
-    { id: 5, image: "/images/pitch/slide5.jpg", alt: "Custom Chatbot Context Powered" },
-    { id: 6, image: "/images/pitch/slide6.jpg", alt: "Community Led Component Library" },
-    { id: 7, image: "/images/pitch/slide7.jpg", alt: "Roadmap" },
-    { id: 8, image: "/images/pitch/slide8.jpg", alt: "Try It Yourself" },
-  ];
-  
-  // Effet pour gérer la touche Echap et quitter le mode plein écran
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isFullscreenOpen) {
-        setIsFullscreenOpen(false);
-      }
-      
-      // Navigation avec les flèches gauche et droite en mode plein écran
-      if (isFullscreenOpen && fullscreenSlide) {
-        const currentIndex = pitchDeckSlides.findIndex(s => s.id === fullscreenSlide.id);
-        
-        // Flèche gauche pour la slide précédente
-        if (e.key === 'ArrowLeft') {
-          const prevIndex = currentIndex > 0 ? currentIndex - 1 : pitchDeckSlides.length - 1;
-          setFullscreenSlide(pitchDeckSlides[prevIndex]);
-          
-          // Mettre à jour également la slide active dans la vue normale
-          setActiveSlideId(pitchDeckSlides[prevIndex].id);
-          
-          // Synchroniser le carrousel normal
-          if (slidesScrollRef.current) {
-            const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
-            if (slideElements[prevIndex]) {
-              slideElements[prevIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
-            }
-          }
-        }
-        
-        // Flèche droite pour la slide suivante
-        if (e.key === 'ArrowRight') {
-          const nextIndex = currentIndex < pitchDeckSlides.length - 1 ? currentIndex + 1 : 0;
-          setFullscreenSlide(pitchDeckSlides[nextIndex]);
-          
-          // Mettre à jour également la slide active dans la vue normale
-          setActiveSlideId(pitchDeckSlides[nextIndex].id);
-          
-          // Synchroniser le carrousel normal
-          if (slidesScrollRef.current) {
-            const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
-            if (slideElements[nextIndex]) {
-              slideElements[nextIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
-            }
-          }
-        }
-      }
-      
-      // Navigation avec les flèches gauche et droite même en mode normal
-      if (!isFullscreenOpen) {
-        // Flèche gauche pour la slide précédente
-        if (e.key === 'ArrowLeft') {
-          const currentIndex = pitchDeckSlides.findIndex(s => s.id === activeSlideId);
-          const prevIndex = currentIndex > 0 ? currentIndex - 1 : pitchDeckSlides.length - 1;
-          setActiveSlideId(pitchDeckSlides[prevIndex].id);
-          
-          // Synchroniser le carrousel
-          if (slidesScrollRef.current) {
-            const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
-            if (slideElements[prevIndex]) {
-              slideElements[prevIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
-            }
-          }
-        }
-        
-        // Flèche droite pour la slide suivante
-        if (e.key === 'ArrowRight') {
-          const currentIndex = pitchDeckSlides.findIndex(s => s.id === activeSlideId);
-          const nextIndex = currentIndex < pitchDeckSlides.length - 1 ? currentIndex + 1 : 0;
-          setActiveSlideId(pitchDeckSlides[nextIndex].id);
-          
-          // Synchroniser le carrousel
-          if (slidesScrollRef.current) {
-            const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
-            if (slideElements[nextIndex]) {
-              slideElements[nextIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
-            }
-          }
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isFullscreenOpen, fullscreenSlide, pitchDeckSlides, activeSlideId]);
   
   // Effet pour nettoyer les classes problématiques
   useEffect(() => {
@@ -208,77 +107,6 @@ export default function Home() {
       navigateToAnalyzer(searchQuery);
     }
   };
-
-  // Fonctions pour scroller les slides horizontalement
-  const scrollLeft = () => {
-    if (slidesScrollRef.current) {
-      slidesScrollRef.current.scrollBy({ left: -300, behavior: 'smooth' });
-      
-      // Mettre à jour l'ID de la slide active
-      const currentIndex = pitchDeckSlides.findIndex(s => s.id === activeSlideId);
-      const prevIndex = currentIndex > 0 ? currentIndex - 1 : pitchDeckSlides.length - 1;
-      setActiveSlideId(pitchDeckSlides[prevIndex].id);
-    }
-  };
-
-  const scrollRight = () => {
-    if (slidesScrollRef.current) {
-      slidesScrollRef.current.scrollBy({ left: 300, behavior: 'smooth' });
-      
-      // Mettre à jour l'ID de la slide active
-      const currentIndex = pitchDeckSlides.findIndex(s => s.id === activeSlideId);
-      const nextIndex = currentIndex < pitchDeckSlides.length - 1 ? currentIndex + 1 : 0;
-      setActiveSlideId(pitchDeckSlides[nextIndex].id);
-    }
-  };
-  
-  // Effet pour détecter quelle slide est visible dans le viewport
-  useEffect(() => {
-    const handleScroll = () => {
-      if (slidesScrollRef.current) {
-        const container = slidesScrollRef.current;
-        const slides = container.querySelectorAll('.snap-center');
-        
-        // Trouver l'élément le plus visible
-        let maxVisibleSlide = null;
-        let maxVisibleArea = 0;
-        
-        slides.forEach((slide, index) => {
-          const rect = slide.getBoundingClientRect();
-          const containerRect = container.getBoundingClientRect();
-          
-          // Calculer la surface visible de la slide dans le conteneur
-          const leftVisible = Math.max(rect.left, containerRect.left);
-          const rightVisible = Math.min(rect.right, containerRect.right);
-          const visibleWidth = Math.max(0, rightVisible - leftVisible);
-          
-          // Si cette slide est plus visible que la précédente
-          if (visibleWidth > maxVisibleArea) {
-            maxVisibleArea = visibleWidth;
-            maxVisibleSlide = index;
-          }
-        });
-        
-        // Si on a trouvé une slide visible, mettre à jour l'état
-        if (maxVisibleSlide !== null) {
-          setActiveSlideId(pitchDeckSlides[maxVisibleSlide].id);
-        }
-      }
-    };
-    
-    const container = slidesScrollRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScroll);
-      // Vérifier initialement quelle slide est visible
-      handleScroll();
-    }
-    
-    return () => {
-      if (container) {
-        container.removeEventListener('scroll', handleScroll);
-      }
-    };
-  }, [pitchDeckSlides]);
 
   return (
     <div className="flex flex-col min-h-screen font-mono">
@@ -598,218 +426,10 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="w-full py-12 md:py-24 lg:py-32">
-          <div className="container-fluid px-4 md:px-8 lg:px-12 xl:px-16 max-w-[2000px] mx-auto">
-            <AnimatedSection>
-              <div className="flex flex-col items-center justify-center space-y-4 text-center mb-8">
-                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Our Pitch Deck</h2>
-                <p className="mx-auto max-w-[800px] text-muted-foreground md:text-xl/relaxed">
-                  This is the presentation we used during the MultiversX AI Hackathon Demo Day that won us first place. Click on a slide to view in fullscreen mode.
-                </p>
-              </div>
-            </AnimatedSection>
-
-            <AnimatedSection delay={0.2} className="relative">
-              {/* Boutons de navigation */}
-              <div className="absolute left-4 top-1/2 z-10 transform -translate-y-1/2">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="rounded-full bg-background/80 backdrop-blur-sm"
-                  onClick={scrollLeft}
-                >
-                  <ChevronLeft className="h-6 w-6" />
-                </Button>
-              </div>
-
-              <div className="absolute right-4 top-1/2 z-10 transform -translate-y-1/2">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="rounded-full bg-background/80 backdrop-blur-sm"
-                  onClick={scrollRight}
-                >
-                  <ChevronRight className="h-6 w-6" />
-                </Button>
-              </div>
-
-              {/* Conteneur de slides avec défilement horizontal */}
-              <div 
-                ref={slidesScrollRef}
-                className="flex overflow-x-auto snap-x hide-scrollbar space-x-6 pb-8 px-2"
-                style={{ 
-                  scrollbarWidth: 'none', 
-                  msOverflowStyle: 'none',
-                  scrollBehavior: 'smooth' 
-                }}
-              >
-                {pitchDeckSlides.map((slide) => (
-                  <div 
-                    key={slide.id} 
-                    className={`flex-shrink-0 snap-center rounded-xl overflow-hidden border shadow-sm group relative transition-all duration-700 ease-out will-change-transform 
-                      ${slide.id === activeSlideId 
-                        ? 'w-full sm:w-[550px] md:w-[660px] lg:w-[880px] h-[440px] md:h-[550px] scale-[1.05] z-10 opacity-100' 
-                        : 'w-full sm:w-[450px] md:w-[540px] lg:w-[720px] h-[360px] md:h-[450px] scale-[0.95] opacity-80'
-                      }`}
-                  >
-                    <div 
-                      className="w-full h-full relative bg-card cursor-pointer" 
-                      onClick={(e) => {
-                        // Arrêter la propagation pour éviter que l'événement atteigne le div parent
-                        e.stopPropagation();
-                        
-                        // Mettre à jour l'état du mode plein écran
-                        setFullscreenSlide(slide);
-                        setIsFullscreenOpen(true);
-                        
-                        // S'assurer que cette slide est active dans le carrousel normal
-                        setActiveSlideId(slide.id);
-                        
-                        // Synchroniser le scroll du carrousel normal
-                        setTimeout(() => {
-                          if (slidesScrollRef.current) {
-                            const slideIndex = pitchDeckSlides.findIndex(s => s.id === slide.id);
-                            const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
-                            if (slideElements[slideIndex]) {
-                              slideElements[slideIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
-                            }
-                          }
-                        }, 10);
-                      }}
-                    >
-                      <Image
-                        src={slide.image}
-                        alt={slide.alt}
-                        fill
-                        style={{ objectFit: 'contain' }}
-                        className="rounded-xl"
-                        onError={(e) => {
-                          // Fallback in case image fails to load
-                          const target = e.target as HTMLImageElement;
-                          target.onerror = null; // Prevent infinite callback loop
-                          target.style.display = 'none';
-                          const parent = target.parentElement;
-                          if (parent) {
-                            const fallback = document.createElement('div');
-                            fallback.className = 'absolute inset-0 flex items-center justify-center flex-col p-6 text-center';
-                            fallback.innerHTML = `<p class="text-xl font-semibold mb-2">${slide.alt}</p><p class="text-sm text-muted-foreground">Slide ${slide.id}</p>`;
-                            parent.appendChild(fallback);
-                          }
-                        }}
-                      />
-                      
-                      {/* Indicator for fullscreen viewing */}
-                      <div className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-maximize">
-                          <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
-                          <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
-                          <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
-                          <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
-                        </svg>
-                      </div>
-                    </div>
-                    
-                    {/* Titre de la slide en dessous, pas en superposition */}
-                    <div className="mt-2 p-2 text-sm text-center font-medium">
-                      {slide.alt}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </AnimatedSection>
-
-            {/* Fullscreen Modal */}
-            {isFullscreenOpen && fullscreenSlide && (
-              <div className="fixed inset-0 bg-black z-50 flex items-center justify-center">
-                <div className="absolute inset-0 flex items-center justify-center" onClick={() => setIsFullscreenOpen(false)}>
-                  <div className="relative w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="absolute left-4 top-1/2 z-10 transform -translate-y-1/2 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20"
-                      onClick={() => {
-                        const currentIndex = pitchDeckSlides.findIndex(s => s.id === fullscreenSlide.id);
-                        const prevIndex = currentIndex > 0 ? currentIndex - 1 : pitchDeckSlides.length - 1;
-                        setFullscreenSlide(pitchDeckSlides[prevIndex]);
-                        
-                        // Mettre à jour également la slide active dans la vue normale
-                        setActiveSlideId(pitchDeckSlides[prevIndex].id);
-                        
-                        // Synchroniser le scroll du carrousel normal avec un léger délai
-                        setTimeout(() => {
-                          if (slidesScrollRef.current) {
-                            const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
-                            if (slideElements[prevIndex]) {
-                              slideElements[prevIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
-                            }
-                          }
-                        }, 10);
-                      }}
-                    >
-                      <ChevronLeft className="h-8 w-8 text-white" />
-                    </Button>
-
-                    {/* Image plein écran */}
-                    <div className="relative w-[90vw] h-[90vh]">
-                      <Image
-                        src={fullscreenSlide.image}
-                        alt={fullscreenSlide.alt}
-                        fill
-                        style={{ objectFit: 'contain' }}
-                      />
-                    </div>
-
-                    {/* Navigation suivant */}
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="absolute right-4 top-1/2 z-10 transform -translate-y-1/2 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20"
-                      onClick={() => {
-                        const currentIndex = pitchDeckSlides.findIndex(s => s.id === fullscreenSlide.id);
-                        const nextIndex = currentIndex < pitchDeckSlides.length - 1 ? currentIndex + 1 : 0;
-                        setFullscreenSlide(pitchDeckSlides[nextIndex]);
-                        
-                        // Mettre à jour également la slide active dans la vue normale
-                        setActiveSlideId(pitchDeckSlides[nextIndex].id);
-                        
-                        // Synchroniser le scroll du carrousel normal avec un léger délai
-                        setTimeout(() => {
-                          if (slidesScrollRef.current) {
-                            const slideElements = slidesScrollRef.current.querySelectorAll('.snap-center');
-                            if (slideElements[nextIndex]) {
-                              slideElements[nextIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
-                            }
-                          }
-                        }, 10);
-                      }}
-                    >
-                      <ChevronRight className="h-8 w-8 text-white" />
-                    </Button>
-
-                    {/* Bouton fermer */}
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="absolute top-4 right-4 z-10 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20"
-                      onClick={() => setIsFullscreenOpen(false)}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-                        <path d="M18 6 6 18"></path>
-                        <path d="m6 6 12 12"></path>
-                      </svg>
-                    </Button>
-
-                    {/* Légende */}
-                    <div className="absolute bottom-6 left-0 right-0 text-center text-white">
-                      <p className="text-xl font-semibold">{fullscreenSlide.alt}</p>
-                      <p className="text-sm text-white/70">Slide {fullscreenSlide.id} of {pitchDeckSlides.length}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
+        {/* Section Pitch Deck utilisant le composant indépendant */}
+        <AnimatedSection>
+          <PitchDeck className="bg-gradient-to-b from-background to-muted/30" />
+        </AnimatedSection>
 
         <section className="w-full py-12 md:py-24 lg:py-32 bg-muted/50">
           <div className="container-fluid px-4 md:px-8 lg:px-12 xl:px-16 max-w-[2000px] mx-auto">
