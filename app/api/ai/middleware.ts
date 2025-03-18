@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/options';
 import { Session } from 'next-auth';
+import { SubscriptionPlanType, getPlanLimits, checkLimitsExceeded } from '@/lib/subscription-plans';
 
 // Le runtime Node.js est configuré globalement dans next.config.js
 // export const runtime = 'nodejs';
@@ -16,14 +17,6 @@ interface ExtendedSession extends Session {
   };
 }
 
-// Constantes pour le rate limiting
-const MAX_REQUESTS_PER_DAY = 10;
-const ANONYMOUS_MAX_REQUESTS_PER_DAY = 5; // Limite plus basse pour les utilisateurs non connectés
-
-// Variables globales pour suivre les utilisateurs anonymes
-// Note: Cette approche est simplifiée et sera réinitialisée au redémarrage du serveur
-const anonymousIpCounts = new Map<string, number>();
-
 // Middleware pour gérer le rate limiting
 export async function rateLimit(req: NextRequest) {
   try {
@@ -31,35 +24,12 @@ export async function rateLimit(req: NextRequest) {
     const session = await getServerSession(authOptions) as ExtendedSession;
     const userId = session?.user?.id;
     
-    // Si l'utilisateur n'est pas connecté, utiliser l'adresse IP pour le tracking (limité)
+    // Si l'utilisateur n'est pas connecté, bloquer l'accès aux fonctionnalités AI
     if (!userId) {
-      // Option 1: Bloquer complètement les utilisateurs anonymes
-      // return NextResponse.json({ error: 'Authentication required for AI features' }, { status: 401 });
-      
-      // Option 2: Permettre un nombre limité de requêtes pour les utilisateurs anonymes
-      // Récupérer l'IP de l'utilisateur
-      const forwardedFor = req.headers.get('x-forwarded-for');
-      const ip = forwardedFor ? forwardedFor.split(',')[0].trim() : 'unknown';
-      
-      // Dans une application réelle, vous voudriez stocker cela dans une base de données/Redis
-      const today = new Date().toISOString().split('T')[0];
-      const ipKey = `${ip}-${today}`;
-      
-      const currentCount = (anonymousIpCounts.get(ipKey) || 0) + 1;
-      anonymousIpCounts.set(ipKey, currentCount);
-      
-      if (currentCount > ANONYMOUS_MAX_REQUESTS_PER_DAY) {
-        return NextResponse.json(
-          { 
-            error: 'Rate limit exceeded', 
-            message: 'Anonymous users are limited to 3 AI requests per day. Please sign in for more requests.' 
-          }, 
-          { status: 429 }
-        );
-      }
-      
-      // Permettre la requête pour les utilisateurs anonymes sous le seuil
-      return NextResponse.next();
+      return NextResponse.json({ 
+        error: 'Authentication required', 
+        message: 'You need to be logged in to use AI features.'
+      }, { status: 401 });
     }
     
     // Pour les utilisateurs authentifiés, vérifier le quota dans la base de données
@@ -70,9 +40,7 @@ export async function rateLimit(req: NextRequest) {
       },
       body: JSON.stringify({
         query: `
-          SELECT * FROM "ai_usage" 
-          WHERE "user_id" = '${userId}' 
-          AND "date" = CURRENT_DATE
+          SELECT * FROM get_user_api_usage('${userId}')
         `
       })
     });
@@ -85,30 +53,94 @@ export async function rateLimit(req: NextRequest) {
       return NextResponse.next();
     }
     
+    // Récupérer le plan d'abonnement de l'utilisateur
+    const userPlanResponse = await fetch('http://localhost:8765/query', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: `
+          SELECT subscription_plan FROM "users" WHERE id = '${userId}'
+        `
+      })
+    });
+    
+    const planResult = await userPlanResponse.json();
+    const userPlan = planResult?.results?.[0]?.subscription_plan || SubscriptionPlanType.FREE;
+    
     const usage = result.results?.[0];
     
-    if (usage && usage.request_count >= MAX_REQUESTS_PER_DAY) {
-      // L'utilisateur a atteint sa limite quotidienne
+    if (!usage) {
+      // Pas encore d'enregistrement d'utilisation, autoriser la requête
+      return NextResponse.next();
+    }
+    
+    // Vérifier si l'utilisateur a dépassé toutes les limites
+    const usageStats = {
+      daily: usage.daily_count || 0,
+      weekly: usage.weekly_count || 0,
+      monthly: usage.monthly_count || 0
+    };
+    
+    const limits = getPlanLimits(userPlan as SubscriptionPlanType);
+    const limitStatus = checkLimitsExceeded(usageStats, userPlan as SubscriptionPlanType);
+    
+    if (limitStatus.exceeded) {
+      // Déterminer quelle limite a été dépassée pour le message d'erreur
+      let message = '';
+      let resetTime = '';
+      
+      if (limitStatus.daily) {
+        message = `You have reached your daily limit of ${limits.daily} AI requests.`;
+        resetTime = new Date(new Date().setHours(24, 0, 0, 0)).toISOString();
+      } else if (limitStatus.weekly) {
+        message = `You have reached your weekly limit of ${limits.weekly} AI requests.`;
+        
+        // Calculer le début de la semaine prochaine (à partir d'aujourd'hui + 7 jours)
+        const now = new Date();
+        const daysUntilNextWeek = 7 - now.getDay();
+        const nextWeek = new Date(now);
+        nextWeek.setDate(now.getDate() + daysUntilNextWeek);
+        nextWeek.setHours(0, 0, 0, 0);
+        resetTime = nextWeek.toISOString();
+      } else if (limitStatus.monthly) {
+        message = `You have reached your monthly limit of ${limits.monthly} AI requests.`;
+        
+        // Calculer le début du mois prochain
+        const now = new Date();
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        resetTime = nextMonth.toISOString();
+      }
+      
+      // Si l'utilisateur a besoin de plus de requêtes, suggérer de passer à Premium
+      if (userPlan === SubscriptionPlanType.FREE) {
+        message += ' Consider upgrading to Premium for more requests.';
+      }
+      
       return NextResponse.json(
         { 
           error: 'Rate limit exceeded', 
-          message: `You have reached your daily limit of ${MAX_REQUESTS_PER_DAY} AI requests. Please try again tomorrow.`,
-          current: usage.request_count,
-          limit: MAX_REQUESTS_PER_DAY,
-          reset: new Date(new Date().setHours(24, 0, 0, 0)).toISOString()
+          message: message,
+          usage: usageStats,
+          limits: limits,
+          reset: resetTime
         }, 
         { status: 429 }
       );
     }
     
-    // Incrémenter le compteur pour cet utilisateur
+    // Log cette requête avant de permettre la requête
     await fetch('http://localhost:8765/query', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        query: `SELECT increment_ai_usage('${userId}')`
+        query: `SELECT log_api_request('${userId}', 'ai', '${JSON.stringify({
+          path: req.nextUrl.pathname,
+          method: req.method
+        }).replace(/'/g, "''")}', '${userPlan}')`
       })
     });
     

@@ -10,6 +10,8 @@ import { useRef, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { PitchDeck } from "@/app/components/PitchDeck"
+import { WaitlistForm } from "@/app/components/WaitlistForm"
+import { SubscriptionPlanType } from "@/lib/subscription-plans"
 
 // Composant pour animer les sections au défilement
 function AnimatedSection({ children, className, delay = 0 }: { 
@@ -472,6 +474,70 @@ export default function Home() {
                 </Button>
               </div>
             </AnimatedSection>
+          </div>
+        </section>
+
+        {/* Section waitlist pour les plans premium */}
+        <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-b from-background to-muted/20">
+          <div className="container-fluid px-4 md:px-8 lg:px-12 xl:px-16 max-w-[2000px] mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+              <AnimatedSection>
+                <div className="space-y-6">
+                  <div className="inline-block rounded-lg bg-primary/10 px-3 py-1 text-sm">Coming Soon</div>
+                  <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight">
+                    Premium & Enterprise Access
+                  </h2>
+                  <p className="max-w-[600px] text-muted-foreground md:text-xl/relaxed">
+                    Join our waitlist for exclusive access to premium features, extended API limits, and enterprise-grade support.
+                  </p>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-2">
+                      <div className="rounded-full bg-primary/10 p-1">
+                        <ArrowRight className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold">Extended API Limits</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Enjoy higher daily, weekly, and monthly request limits for your applications.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <div className="rounded-full bg-primary/10 p-1">
+                        <ArrowRight className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold">Priority Support</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Get dedicated support and faster response times for your technical inquiries.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <div className="rounded-full bg-primary/10 p-1">
+                        <ArrowRight className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold">Advanced Analytics</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Access detailed analytics and insights about your API usage and performance.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </AnimatedSection>
+              
+              <AnimatedSection delay={0.2} className="flex justify-center">
+                <div className="w-full max-w-md">
+                  <WaitlistForm 
+                    defaultTier={SubscriptionPlanType.PREMIUM}
+                    showTitle={true}
+                    className="shadow-md border border-primary/20"
+                  />
+                </div>
+              </AnimatedSection>
+            </div>
           </div>
         </section>
       </main>
