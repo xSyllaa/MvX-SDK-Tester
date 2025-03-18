@@ -17,8 +17,8 @@ interface ExtendedSession extends Session {
 }
 
 // Constantes pour le rate limiting
-const MAX_REQUESTS_PER_DAY = 50;
-const ANONYMOUS_MAX_REQUESTS_PER_DAY = 50; // Limite plus basse pour les utilisateurs non connectés
+const MAX_REQUESTS_PER_DAY = 10;
+const ANONYMOUS_MAX_REQUESTS_PER_DAY = 5; // Limite plus basse pour les utilisateurs non connectés
 
 // Variables globales pour suivre les utilisateurs anonymes
 // Note: Cette approche est simplifiée et sera réinitialisée au redémarrage du serveur

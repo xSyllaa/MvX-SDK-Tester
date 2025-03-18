@@ -25,14 +25,15 @@ interface ExtendedJWT extends JWT {
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    GithubProvider({
-      clientId: process.env.GITHUB_ID || '',
-      clientSecret: process.env.GITHUB_SECRET || '',
-    }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    }),
+    // Désactivé temporairement car les clés OAuth ne sont pas configurées
+    // GithubProvider({
+    //   clientId: process.env.GITHUB_ID || '',
+    //   clientSecret: process.env.GITHUB_SECRET || '',
+    // }),
+    // GoogleProvider({
+    //   clientId: process.env.GOOGLE_CLIENT_ID || '',
+    //   clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    // }),
     CredentialsProvider({
       name: 'Credentials',
       credentials: {

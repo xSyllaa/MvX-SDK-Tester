@@ -30,7 +30,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={inter.className} suppressHydrationWarning>
         <Script 
           src="https://cloud.umami.is/script.js" 
           data-website-id="d7b6f417-adbd-4469-93eb-e33dcce27f19" 
