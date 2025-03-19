@@ -341,6 +341,8 @@ export function PitchDeck({ className }: PitchDeckProps) {
                         style={{ objectFit: 'contain' }}
                         className="rounded-t-xl"
                         priority={index < 3} // Charger en priorité les premières images
+                        sizes="(max-width: 640px) 100vw, (max-width: 768px) 550px, (max-width: 1024px) 700px, 900px"
+                        unoptimized
                         onError={(e) => {
                           // Fallback en cas d'erreur de chargement d'image
                           const target = e.target as HTMLImageElement;
@@ -452,6 +454,8 @@ export function PitchDeck({ className }: PitchDeckProps) {
                         style={{ objectFit: 'contain' }}
                         quality={90}
                         priority={index === activeIndex}
+                        sizes="(max-width: 768px) 100vw, 94vw"
+                        unoptimized
                       />
                     </div>
                   ))}
