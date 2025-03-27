@@ -1,8 +1,7 @@
 "use client";
 
-import { signOut } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -67,7 +66,7 @@ const subscriptionPlans = [
 ];
 
 export default function AccountPage() {
-  const { userData, isLoading, isAuthenticated, logout, redirectToLogin } = useUser();
+  const { userData, isLoading, isAuthenticated, redirectToLogin } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('profile');
@@ -86,6 +85,21 @@ export default function AccountPage() {
       redirectToLogin('/account');
     }
   }, [isLoading, isAuthenticated, redirectToLogin]);
+  
+  const handleLogout = useCallback(async () => {
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        router.push('/login');
+      }
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  }, [router]);
   
   // Show loading state while checking session
   if (isLoading) {
@@ -118,7 +132,7 @@ export default function AccountPage() {
           variant="destructive" 
           size="sm" 
           className="w-full md:w-auto flex items-center gap-2"
-          onClick={logout}
+          onClick={handleLogout}
         >
           <LogOut className="h-4 w-4" />
           Logout
@@ -146,7 +160,7 @@ export default function AccountPage() {
           <div className="grid gap-8 md:grid-cols-[2fr_1fr]">
             <UserProfileCard 
               userData={userData} 
-              onLogout={logout}
+              onLogout={handleLogout}
             />
             
             <div className="space-y-8">
