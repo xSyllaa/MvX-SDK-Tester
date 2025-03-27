@@ -10,6 +10,7 @@ import { LogOut, User, BarChart } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import PasswordChangeForm from '../components/PasswordChangeForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 // Type pour les statistiques d'utilisation
 type UsageStats = {
@@ -83,6 +84,14 @@ export default function AccountPage() {
   // Fonction pour calculer le pourcentage d'utilisation
   const calculateUsagePercentage = (used: number, limit: number) => {
     return Math.min((used / limit) * 100, 100);
+  };
+
+  // Fonction pour déterminer la couleur de la barre de progression
+  const getProgressColor = (percentage: number) => {
+    if (percentage >= 100) return "bg-black";
+    if (percentage >= 85) return "bg-red-500";
+    if (percentage >= 50) return "bg-orange-500";
+    return "bg-green-500";
   };
 
   // Fonction pour formater la date
@@ -208,6 +217,7 @@ export default function AccountPage() {
                       <Progress 
                         value={calculateUsagePercentage(usageStats.today, usageStats.limits.dailyLimit)} 
                         className="h-2"
+                        indicatorClassName={getProgressColor(calculateUsagePercentage(usageStats.today, usageStats.limits.dailyLimit))}
                       />
                     </div>
                     
@@ -221,6 +231,7 @@ export default function AccountPage() {
                       <Progress 
                         value={calculateUsagePercentage(usageStats.week, usageStats.limits.weeklyLimit)} 
                         className="h-2"
+                        indicatorClassName={getProgressColor(calculateUsagePercentage(usageStats.week, usageStats.limits.weeklyLimit))}
                       />
                     </div>
                     
@@ -234,6 +245,7 @@ export default function AccountPage() {
                       <Progress 
                         value={calculateUsagePercentage(usageStats.month, usageStats.limits.monthlyLimit)} 
                         className="h-2"
+                        indicatorClassName={getProgressColor(calculateUsagePercentage(usageStats.month, usageStats.limits.monthlyLimit))}
                       />
                     </div>
                   </div>
