@@ -1,65 +1,102 @@
 'use client';
 
-import { useSession, signIn, signOut } from 'next-auth/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+interface User {
+  id: string;
+  email: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  isVerified: boolean;
+  isAnonymous: boolean;
+}
 
 interface UseAuthOptions {
   callbackUrl?: string;
 }
 
+type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
+
+interface AuthSession {
+  user: User | null;
+  token: string | null;
+  expiresAt: string | null;
+}
+
 export function useAuth(options: UseAuthOptions = {}) {
   const { callbackUrl = '/' } = options;
-  const { data: session, status } = useSession();
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [status, setStatus] = useState<AuthStatus>('loading');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
+  // Vérifier l'état de l'authentification au chargement
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        
+        if (response.ok) {
+          const data = await response.json();
+          setSession({
+            user: data.user,
+            token: data.token,
+            expiresAt: data.expiresAt
+          });
+          setStatus('authenticated');
+        } else {
+          setSession(null);
+          setStatus('unauthenticated');
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        setSession(null);
+        setStatus('unauthenticated');
+      }
+    };
+
+    checkAuth();
+  }, []);
+
   const isAuthenticated = status === 'authenticated';
   const isLoading = status === 'loading';
-
-  const loginWithGithub = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      await signIn('github', { callbackUrl });
-    } catch (error) {
-      console.error('GitHub login error:', error);
-      setError('Failed to login with GitHub');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loginWithGoogle = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      await signIn('google', { callbackUrl });
-    } catch (error) {
-      console.error('Google login error:', error);
-      setError('Failed to login with Google');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const loginWithCredentials = async (email: string, password: string) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await signIn('credentials', {
-        redirect: false,
-        email,
-        password,
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (result?.error) {
-        setError(result.error);
-      } else if (result?.ok) {
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || 'Failed to login');
+        return false;
+      }
+
+      setSession({
+        user: data.user,
+        token: data.token,
+        expiresAt: data.expiresAt
+      });
+      setStatus('authenticated');
+      
+      if (callbackUrl) {
         window.location.href = callbackUrl;
       }
+      
+      return true;
     } catch (error) {
-      console.error('Credentials login error:', error);
-      setError('Failed to login with credentials');
+      console.error('Login error:', error);
+      setError('An unexpected error occurred');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -68,7 +105,16 @@ export function useAuth(options: UseAuthOptions = {}) {
   const logout = async () => {
     setLoading(true);
     try {
-      await signOut({ callbackUrl });
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
+      
+      setSession(null);
+      setStatus('unauthenticated');
+      
+      if (callbackUrl) {
+        window.location.href = callbackUrl;
+      }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -82,8 +128,6 @@ export function useAuth(options: UseAuthOptions = {}) {
     isLoading,
     error,
     loading,
-    loginWithGithub,
-    loginWithGoogle,
     loginWithCredentials,
     logout,
   };

@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Wallet, Github, Mail, User, Settings, LogOut, X, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuth } from '@/hooks/useAuth';
 import { WalletConnectLoginButton } from "@multiversx/sdk-dapp/UI";
 import { XPortalLogo } from "@/components/icons/xportal-logo";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { AIUsageStatus } from '@/app/components/AIUsageStatus';
 import { useRouter } from 'next/navigation';
-import { signIn, useSession } from 'next-auth/react';
 import { useUser } from '@/hooks/use-user';
 
 // Type pour les props des boutons de connexion
@@ -37,16 +36,14 @@ export function ConnectWallet() {
   
   const callbackRoute = '/';
   const router = useRouter();
-  const { data: session } = useSession();
   const { isAuthenticated, redirectToLogin } = useUser();
 
   const {
-    user,
-    isReallyAuthenticated,
+    session,
+    isAuthenticated: isUserAuthenticated,
     isLoading,
     error,
     loginWithCredentials,
-    registerWithCredentials,
     logout
   } = useAuth();
 
@@ -143,15 +140,14 @@ export function ConnectWallet() {
     
     try {
       console.log(`Attempting to login with username: ${identifier}`);
-      const result = await loginWithCredentials(identifier, password);
+      const success = await loginWithCredentials(identifier, password);
       
-      if (result.success) {
+      if (success) {
         setIdentifier('');
         setPassword('');
         setIsOpen(false);
-      } else if (result.error) {
-        console.error('Login error:', result.error);
-        setErrorMessage(result.error);
+      } else {
+        setErrorMessage('Login failed. Please check your credentials.');
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -174,17 +170,33 @@ export function ConnectWallet() {
     }
     
     try {
-      const result = await registerWithCredentials(identifier, password, identifier, undefined, anonymousToken || undefined);
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: identifier,
+          email: identifier,
+          password,
+          anonymousToken: anonymousToken || undefined
+        }),
+      });
       
-      if (result.success) {
+      const data = await response.json();
+      
+      if (response.ok) {
         setIdentifier('');
         setPassword('');
         setConfirmPassword('');
         setIsRegistering(false);
         setIsOpen(false);
-      } else if (result.error) {
-        console.error('Registration error:', result.error);
-        setErrorMessage(result.error);
+        
+        // Auto-login après l'inscription
+        await loginWithCredentials(identifier, password);
+      } else {
+        console.error('Registration error:', data.message);
+        setErrorMessage(data.message || 'Registration failed');
       }
     } catch (error) {
       console.error('Registration error:', error);
@@ -373,7 +385,7 @@ export function ConnectWallet() {
 
   return (
     <div>
-      {isReallyAuthenticated ? (
+      {isUserAuthenticated ? (
         <Button
           variant="outline"
           className="px-3 py-2 h-auto"

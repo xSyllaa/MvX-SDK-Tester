@@ -17,7 +17,7 @@ import { WaitlistForm } from '../components/WaitlistForm';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Accordion,
   AccordionContent,
@@ -26,8 +26,7 @@ import {
 } from "@/components/ui/accordion";
 
 export default function SubscriptionPage() {
-  const { data: session, status } = useSession();
-  const isAuthenticated = status === 'authenticated';
+  const { isAuthenticated } = useAuth();
 
   return (
     <div className="container mx-auto py-12">

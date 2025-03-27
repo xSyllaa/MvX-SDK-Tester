@@ -1,127 +1,112 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../auth/[...nextauth]/options';
-import { Session } from 'next-auth';
-import { SubscriptionPlanType, getPlanLimits } from '@/lib/subscription-plans';
 import { supabaseAdmin } from '@/lib/supabase';
+import { SubscriptionPlanType, getPlanLimits } from '@/lib/subscription-plans';
 
 // Le runtime Node.js est configuré globalement dans next.config.js
-// export const runtime = 'nodejs';
+export const runtime = 'nodejs';
 
-// Interface étendue pour la session avec le champ id
-interface ExtendedSession extends Session {
-  user?: {
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
-    id?: string;
-  };
+// Fonction pour obtenir l'utilisateur actuel à partir du cookie d'authentification
+async function getCurrentUser(request: NextRequest) {
+  try {
+    console.log('🔍 Vérification de l\'authentification...');
+    
+    // Récupérer le token d'authentification depuis les cookies de la requête
+    const authToken = request.cookies.get('sb-access-token')?.value;
+    
+    if (!authToken) {
+      console.log('⚠️ Aucun token d\'authentification trouvé');
+      return null;
+    }
+    
+    console.log('✅ Token d\'authentification trouvé');
+    
+    // Récupérer l'utilisateur directement depuis Supabase avec le token
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(authToken);
+    
+    if (userError || !user) {
+      console.error('❌ Erreur lors de la récupération de l\'utilisateur:', userError);
+      return null;
+    }
+    
+    console.log(`✅ Utilisateur identifié: ${user.id}`);
+    
+    // Récupérer le plan d'abonnement de l'utilisateur
+    const { data: userData, error: subscriptionError } = await supabaseAdmin
+      .from('users')
+      .select('subscription_plan')
+      .eq('id', user.id)
+      .single();
+    
+    if (subscriptionError) {
+      console.error('⚠️ Erreur lors de la récupération du plan d\'abonnement:', subscriptionError);
+      return { 
+        id: user.id, 
+        subscriptionPlan: 'free' as SubscriptionPlanType
+      };
+    }
+    
+    return { 
+      id: user.id, 
+      subscriptionPlan: (userData?.subscription_plan || 'free') as SubscriptionPlanType
+    };
+  } catch (error) {
+    console.error('❌ Erreur générale lors de la récupération de l\'utilisateur:', error);
+    return null;
+  }
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    // Vérifier si l'utilisateur est authentifié
-    const session = await getServerSession(authOptions) as ExtendedSession;
-    const userId = session?.user?.id;
-    
-    // Si l'utilisateur n'est pas connecté, renvoyer une erreur
-    if (!userId) {
+    // Obtenir l'utilisateur actuel
+    const userInfo = await getCurrentUser(request);
+
+    if (!userInfo || !userInfo.id) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
     }
-    
-    // Récupérer le forfait de l'utilisateur
-    const { data: userData, error: userError } = await supabaseAdmin
-      .from('users')
-      .select('subscription_plan')
-      .eq('id', userId)
+
+    // Récupérer les limites du plan
+    const planLimits = getPlanLimits(userInfo.subscriptionPlan);
+
+    // Récupérer l'utilisation actuelle
+    const { data: usageData, error: usageError } = await supabaseAdmin
+      .from('user_api_usage_summary')
+      .select('*')
+      .eq('user_id', userInfo.id)
       .single();
-    
-    if (userError) {
-      console.error('Error fetching user plan:', userError);
+
+    if (usageError && usageError.code !== 'PGRST116') { // PGRST116 = not found
+      console.error('Erreur lors de la récupération des données d\'utilisation:', usageError);
       return NextResponse.json(
-        { error: 'Failed to fetch user data' },
+        { error: 'Failed to fetch usage data' },
         { status: 500 }
       );
     }
-    
-    const userPlan = userData?.subscription_plan || SubscriptionPlanType.FREE;
-    
-    // Récupérer l'utilisation de l'API pour cet utilisateur
-    const { data: usageData, error: usageError } = await supabaseAdmin.rpc(
-      'get_user_api_usage',
-      { p_user_id: userId }
-    );
-    
-    if (usageError) {
-      console.error('Error fetching API usage:', usageError);
-      return NextResponse.json(
-        { error: 'Failed to fetch API usage data' },
-        { status: 500 }
-      );
-    }
-    
-    const usage = usageData && usageData.length > 0 ? usageData[0] : null;
-    
-    // Récupérer les limites du forfait de l'utilisateur
-    const limits = getPlanLimits(userPlan as SubscriptionPlanType);
-    
-    // Calculer les temps de réinitialisation
-    const now = new Date();
-    
-    // Réinitialisation quotidienne (fin de la journée)
-    const dailyReset = new Date(now);
-    dailyReset.setHours(23, 59, 59, 999);
-    
-    // Réinitialisation hebdomadaire (midi de dimanche prochain)
-    const weeklyReset = new Date(now);
-    const daysUntilSunday = 7 - weeklyReset.getDay();
-    weeklyReset.setDate(weeklyReset.getDate() + daysUntilSunday);
-    weeklyReset.setHours(23, 59, 59, 999);
-    
-    // Réinitialisation mensuelle (premier jour du mois suivant)
-    const monthlyReset = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    monthlyReset.setHours(0, 0, 0, 0);
-    
-    // Si aucune utilisation n'est enregistrée
-    if (!usage) {
-      return NextResponse.json({
-        plan: userPlan,
-        usage: {
-          daily: 0,
-          weekly: 0,
-          monthly: 0
-        },
-        limits: limits,
-        reset: {
-          daily: dailyReset.toISOString(),
-          weekly: weeklyReset.toISOString(),
-          monthly: monthlyReset.toISOString()
-        }
-      });
-    }
-    
-    // Renvoyer les données d'utilisation avec les limites
+
+    // Si aucune donnée d'utilisation n'existe, retourner des compteurs à 0
+    const usage = usageData || {
+      today_count: 0,
+      week_count: 0,
+      month_count: 0,
+      last_request_at: null
+    };
+
     return NextResponse.json({
-      plan: userPlan,
+      plan: userInfo.subscriptionPlan,
+      limits: planLimits,
       usage: {
-        daily: usage.daily_count || 0,
-        weekly: usage.weekly_count || 0,
-        monthly: usage.monthly_count || 0
-      },
-      limits: limits,
-      reset: {
-        daily: dailyReset.toISOString(),
-        weekly: weeklyReset.toISOString(),
-        monthly: monthlyReset.toISOString()
+        today: usage.today_count,
+        week: usage.week_count,
+        month: usage.month_count,
+        lastRequest: usage.last_request_at
       }
     });
   } catch (error) {
-    console.error('API usage error:', error);
+    console.error('Erreur lors de la récupération des données d\'utilisation:', error);
     return NextResponse.json(
-      { error: 'Failed to process API usage request' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

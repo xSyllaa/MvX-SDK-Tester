@@ -28,14 +28,14 @@ export function PitchDeck({ className }: PitchDeckProps) {
   
   // Pitch deck slides data - reste inchangé
   const pitchDeckSlides = [
-    { id: 1, image: "/images/pitch/slide1.JPG", alt: "Presentation" },
-    { id: 2, image: "/images/pitch/slide2.JPG", alt: "Overview" },
-    { id: 3, image: "/images/pitch/slide3.JPG", alt: "Key Features" },
-    { id: 4, image: "/images/pitch/slide4.JPG", alt: "SDK and ABI Analyzer" },
-    { id: 5, image: "/images/pitch/slide5.JPG", alt: "Custom Chatbot Context Powered" },
-    { id: 6, image: "/images/pitch/slide6.JPG", alt: "Community Led Component Library" },
-    { id: 7, image: "/images/pitch/slide7.JPG", alt: "Roadmap" },
-    { id: 8, image: "/images/pitch/slide8.JPG", alt: "Try It Yourself" },
+    { id: 1, image: "/images/pitch/slide1.jpg", alt: "Presentation" },
+    { id: 2, image: "/images/pitch/slide2.jpg", alt: "Overview" },
+    { id: 3, image: "/images/pitch/slide3.jpg", alt: "Key Features" },
+    { id: 4, image: "/images/pitch/slide4.jpg", alt: "SDK and ABI Analyzer" },
+    { id: 5, image: "/images/pitch/slide5.jpg", alt: "Custom Chatbot Context Powered" },
+    { id: 6, image: "/images/pitch/slide6.jpg", alt: "Community Led Component Library" },
+    { id: 7, image: "/images/pitch/slide7.jpg", alt: "Roadmap" },
+    { id: 8, image: "/images/pitch/slide8.jpg", alt: "Try It Yourself" },
   ];
 
   // Animation fluide synchronisée pour le défilement et les transitions visuelles

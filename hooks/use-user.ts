@@ -1,5 +1,4 @@
-import { useSession } from 'next-auth/react';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 
 /**
@@ -28,8 +27,8 @@ export interface UserData {
 /**
  * Hook personnalisé pour gérer l'authentification et les données utilisateur
  * 
- * Ce hook unifie les données provenant de NextAuth et du contexte d'authentification personnalisé,
- * offrant une interface unique pour accéder aux informations de l'utilisateur et gérer l'authentification.
+ * Ce hook utilise le système d'authentification Supabase personnalisé pour accéder 
+ * aux informations de l'utilisateur et gérer l'authentification.
  * 
  * @example
  * ```tsx
@@ -50,7 +49,7 @@ export interface UserData {
  * ```
  * 
  * @returns Un objet contenant:
- *   - userData: Les informations combinées de l'utilisateur
+ *   - userData: Les informations de l'utilisateur
  *   - isLoading: Indique si l'authentification est en cours de vérification
  *   - isAuthenticated: Indique si l'utilisateur est authentifié
  *   - logout: Fonction pour déconnecter l'utilisateur
@@ -63,22 +62,20 @@ export function useUser(): {
   logout: () => Promise<void>;
   redirectToLogin: (callbackUrl?: string) => void;
 } {
-  const { data: session, status: nextAuthStatus } = useSession();
-  const { user, isReallyAuthenticated, isLoading: authLoading, logout: authLogout } = useAuth();
+  const { session, isAuthenticated, isLoading, logout: authLogout } = useAuth();
   const router = useRouter();
 
-  // Déterminer si l'utilisateur est authentifié (via NextAuth ou notre système personnalisé)
-  const isAuthenticated = isReallyAuthenticated || (nextAuthStatus === 'authenticated');
-  const isLoading = authLoading || nextAuthStatus === 'loading';
+  // Récupérer les données utilisateur depuis la session Supabase
+  const user = session?.user;
 
-  // Combiner les informations des deux sources
+  // Préparer les données utilisateur
   const userData: UserData = {
     id: user?.id || 'user-1',
-    name: user?.displayName || session?.user?.name || user?.username || 'User',
-    email: user?.email || session?.user?.email || 'user@example.com',
-    image: user?.avatarUrl || session?.user?.image || undefined,
-    joinDate: '2023-01-01T00:00:00Z', // Valeur par défaut car ni User ni session ne contiennent joinDate
-    plan: 'Free Plan', // Valeur par défaut car ni User ni session ne contiennent plan
+    name: user?.displayName || user?.username || 'User',
+    email: user?.email || 'user@example.com',
+    image: user?.avatarUrl || undefined,
+    joinDate: '2023-01-01T00:00:00Z', // Valeur par défaut
+    plan: 'Free Plan', // Valeur par défaut
     isLoading,
     isAuthenticated
   };
@@ -97,7 +94,7 @@ export function useUser(): {
    * @param callbackUrl - URL vers laquelle rediriger après connexion (par défaut: '/account')
    */
   const redirectToLogin = (callbackUrl = '/account') => {
-    router.push(`/api/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+    router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
   };
 
   return {

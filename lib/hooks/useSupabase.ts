@@ -2,17 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { supabaseClient } from '@/lib/supabase';
-import { useSession } from 'next-auth/react';
 
 export function useSupabase() {
-  const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-
-  // Réinitialiser les erreurs quand la session change
-  useEffect(() => {
-    setError(null);
-  }, [session]);
 
   // Fonction pour exécuter des requêtes SQL sécurisées via RPC
   const executeSql = async <T>(sqlQuery: string): Promise<{ data: T | null; error: Error | null }> => {
