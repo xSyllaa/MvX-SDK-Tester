@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
  * @property name - Nom d'affichage de l'utilisateur
  * @property email - Adresse email de l'utilisateur
  * @property image - URL optionnelle vers l'avatar de l'utilisateur
- * @property joinDate - Date d'inscription au format ISO
+ * @property created_at - Date de création au format ISO
  * @property plan - Plan d'abonnement actuel de l'utilisateur
  * @property isLoading - Indique si les données sont en cours de chargement
  * @property isAuthenticated - Indique si l'utilisateur est authentifié
@@ -18,7 +18,7 @@ export interface UserData {
   name: string;
   email: string;
   image?: string;
-  joinDate: string;
+  created_at: string;
   plan: string;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -74,7 +74,7 @@ export function useUser(): {
     name: user?.displayName || user?.username || 'User',
     email: user?.email || 'user@example.com',
     image: user?.avatarUrl || undefined,
-    joinDate: '2023-01-01T00:00:00Z', // Valeur par défaut
+    created_at: user?.created_at || new Date().toISOString(),
     plan: 'Free Plan', // Valeur par défaut
     isLoading,
     isAuthenticated

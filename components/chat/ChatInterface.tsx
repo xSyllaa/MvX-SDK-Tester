@@ -183,10 +183,7 @@ export function ChatInterface() {
   const resizeHandle = useMemo(() => (
     <div 
       className="absolute left-[-6px] top-0 bottom-0 w-3 cursor-ew-resize hover:bg-primary/20 group z-[50]"
-      onMouseDown={(e) => {
-        setIsResizing(true);
-        e.preventDefault();
-      }}
+      onMouseDown={startResizing}
     >
       <div className={cn(
         "absolute left-[5px] top-0 bottom-0 w-[2px] transition-colors",
@@ -194,7 +191,7 @@ export function ChatInterface() {
         isResizing ? "bg-primary" : "group-active:bg-primary"
       )} />
     </div>
-  ), [isResizing, setIsResizing]);
+  ), [isResizing, startResizing]);
 
   // Mobile interface mémorisé
   const mobileInterface = useMemo(() => (

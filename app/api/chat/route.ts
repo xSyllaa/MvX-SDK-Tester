@@ -172,27 +172,42 @@ export async function POST(request: NextRequest) {
     console.log('[API] Sending message to AI');
     const model = genAI.getGenerativeModel(modelConfig);
 
-    // Utiliser le format le plus simple
-    const result = await model.generateContent(conversationHistory);
-    const response = await result.response;
-    const text = response.text();
+    // Créer un encodeur pour le streaming
+    const encoder = new TextEncoder();
 
-    if (!text) {
-      console.log('[API] Error: Empty response from AI');
-      throw new Error('Empty response from AI');
-    }
+    // Créer un TransformStream pour le streaming
+    const stream = new TransformStream();
+    const writer = stream.writable.getWriter();
 
-    console.log('[API] AI response received');
-    
-    return NextResponse.json({
-      response: text,
-      metadata: {
-        userId: userInfo.id,
-        subscriptionPlan: userInfo.subscriptionPlan,
-        timestamp: new Date().toISOString(),
-        contextType: contextType
-      }
+    // Démarrer la génération de contenu en streaming
+    const result = await model.generateContentStream(conversationHistory);
+
+    // Créer et retourner la réponse streamée
+    const streamResponse = new Response(stream.readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
     });
+
+    // Traiter le stream en arrière-plan
+    (async () => {
+      try {
+        for await (const chunk of result.stream) {
+          const text = chunk.text();
+          if (text) {
+            await writer.write(encoder.encode(text));
+          }
+        }
+      } catch (error) {
+        console.error('[API] Error during streaming:', error);
+      } finally {
+        await writer.close();
+      }
+    })();
+
+    return streamResponse;
     
   } catch (error: any) {
     console.error('[API] Error processing chatbot request:', error);

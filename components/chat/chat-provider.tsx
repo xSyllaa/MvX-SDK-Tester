@@ -1,18 +1,21 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, type ReactNode, type ChangeEvent, type FormEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode, type ChangeEvent, type FormEvent, type MouseEvent as ReactMouseEvent, Dispatch, SetStateAction } from 'react';
 import { type Message } from '@/src/types/chat';
 import { useUser } from '@/hooks/use-user';
 
 export interface ChatContextType {
   messages: Message[];
+  setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void;
   input: string;
-  setInput: (input: string) => void;
+  setInput: Dispatch<SetStateAction<string>>;
   handleInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: FormEvent) => Promise<void>;
   handleSend: (directMessage?: string) => Promise<void>;
   isLoading: boolean;
+  setIsLoading: (isLoading: boolean) => void;
   error: string | null;
+  setError: (error: string | null) => void;
   context: string;
   setContext: (context: string) => void;
   isChatVisible: boolean;
@@ -47,19 +50,28 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     if (!isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      // Calculer la nouvelle largeur en fonction de la distance depuis le bord droit de l'écran
-      let newWidth = window.innerWidth - e.clientX;
+      e.preventDefault();
+      const newWidth = window.innerWidth - e.clientX;
       
       // Limiter la largeur
-      if (newWidth < MIN_CHAT_WIDTH) newWidth = MIN_CHAT_WIDTH;
-      if (newWidth > MAX_CHAT_WIDTH) newWidth = MAX_CHAT_WIDTH;
+      const clampedWidth = Math.max(MIN_CHAT_WIDTH, Math.min(MAX_CHAT_WIDTH, newWidth));
       
-      setChatWidth(newWidth);
+      // Mettre à jour la largeur du chat
+      setChatWidth(clampedWidth);
+      
+      // Mettre à jour la variable CSS pour le padding du contenu principal
+      document.documentElement.style.setProperty('--content-padding-right', `${clampedWidth}px`);
     };
 
     const handleMouseUp = () => {
       setIsResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
+
+    // Appliquer les styles pendant le redimensionnement
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
@@ -67,8 +79,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
   }, [isResizing]);
+
+  // Mettre à jour le padding du contenu principal quand le chat est visible/caché
+  useEffect(() => {
+    const padding = isChatVisible ? `${chatWidth}px` : '0px';
+    document.documentElement.style.setProperty('--content-padding-right', padding);
+    
+    return () => {
+      document.documentElement.style.removeProperty('--content-padding-right');
+    };
+  }, [isChatVisible, chatWidth]);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
@@ -106,19 +130,26 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         setInput('');
       }
 
+      // Ajouter un message vide pour l'assistant
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: ''
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+
       // Préparer le corps de la requête avec l'historique complet
       const requestBody = {
         message: messageToSend,
         contextType: context || 'landing',
         messages: messages.map(msg => ({
           role: msg.role,
-          content: msg.content // Utiliser content au lieu de parts
+          content: msg.content
         }))
       };
 
       console.log('[Chat] Sending request with body:', requestBody);
 
-      // Appeler l'API
+      // Appeler l'API avec streaming
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -133,15 +164,34 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         throw new Error(errorData.error || 'Échec de la réponse');
       }
 
-      const data = await response.json();
-      
-      // Ajouter la réponse de l'assistant
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: data.response
-      };
+      // Lire le stream de la réponse
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedResponse = '';
 
-      setMessages(prev => [...prev, assistantMessage]);
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            break;
+          }
+
+          // Décoder le chunk et l'ajouter à la réponse accumulée
+          const chunk = decoder.decode(value, { stream: true });
+          accumulatedResponse += chunk;
+
+          // Mettre à jour le dernier message (celui de l'assistant)
+          setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = {
+              role: 'assistant',
+              content: accumulatedResponse
+            };
+            return newMessages;
+          });
+        }
+      }
 
       console.log('[Chat] Message sent and response received successfully');
 
@@ -149,8 +199,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       console.error('[Chat] Error:', err);
       setError(err.message || 'Échec de l\'envoi du message. Veuillez réessayer.');
       
-      // Retirer le message utilisateur en cas d'erreur
-      setMessages(prev => prev.slice(0, -1));
+      // Retirer les messages en cas d'erreur
+      setMessages(prev => prev.slice(0, -2));
     } finally {
       setIsLoading(false);
     }
@@ -161,25 +211,33 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     await handleSend();
   };
 
-  const hideChat = () => setIsChatVisible(false);
-  const showChat = () => setIsChatVisible(true);
+  const hideChat = () => {
+    setIsChatVisible(false);
+  };
+
+  const showChat = () => {
+    setIsChatVisible(true);
+  };
 
   const startResizing = (e: ReactMouseEvent<HTMLDivElement>) => {
-    setIsResizing(true);
     e.preventDefault();
+    setIsResizing(true);
   };
 
   return (
     <ChatContext.Provider
       value={{
         messages,
+        setMessages,
         input,
         setInput,
         handleInputChange,
         handleSubmit,
         handleSend,
         isLoading,
+        setIsLoading,
         error,
+        setError,
         context,
         setContext,
         isChatVisible,
