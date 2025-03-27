@@ -178,8 +178,7 @@ export function ConnectWallet() {
         body: JSON.stringify({
           username: identifier,
           email: identifier,
-          password,
-          anonymousToken: anonymousToken || undefined
+          password
         }),
       });
       
