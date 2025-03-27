@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, type RefObject, type Dispatch, type SetStateAction, useMemo, useCallback, memo } from 'react';
-import { Message, continueConversation } from '@/app/actions';
+import { type Message } from '@/src/types/chat';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';

@@ -19,14 +19,23 @@ interface AuthResponse {
   message?: string;
 }
 
-interface AuthState {
+export type AuthState = {
   user: User | null;
   isAuthenticated: boolean;
   isAnonymous: boolean;
   isLoading: boolean;
   error: string | null;
   isInitialized: boolean;
-}
+};
+
+const initialState: AuthState = {
+  user: null,
+  isAuthenticated: false,
+  isAnonymous: false,
+  isLoading: true,
+  error: null,
+  isInitialized: false
+};
 
 interface AuthContextType extends AuthState {
   isReallyAuthenticated: boolean;
@@ -39,21 +48,20 @@ interface AuthContextType extends AuthState {
 // Création du contexte avec une valeur par défaut
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Variable globale pour suivre l'état de l'initialisation
-let isGlobalInitializing = false;
-let lastInitAttempt = 0;
+// Configuration du cache
+const AUTH_CACHE_DURATION = 300000; // 5 minutes au lieu de 1 minute
+let lastAuthCheck = 0;
+let cachedAuthState: AuthState | null = null;
+let pendingAuthCheck: Promise<void> | null = null;
+
+// Fonction pour vérifier si une vérification est nécessaire
+const shouldCheckAuth = () => {
+  const now = Date.now();
+  return !cachedAuthState || (now - lastAuthCheck >= AUTH_CACHE_DURATION);
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    isAuthenticated: false,
-    isAnonymous: false,
-    isLoading: true,
-    error: null,
-    isInitialized: false
-  });
-
-  // Référence pour savoir si le composant est monté
+  const [state, setState] = useState<AuthState>(initialState);
   const isMounted = useRef(true);
   
   // Référence à l'état pour pouvoir y accéder dans les callbacks async
@@ -72,75 +80,101 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return '';
   };
 
-  // Fonction pour vérifier l'état d'authentification
+  // Fonction pour vérifier l'état d'authentification avec cache et debouncing
   const checkAuthStatus = async () => {
-    
-    // Éviter les vérifications multiples simultanées
-    const now = Date.now();
-    if (isGlobalInitializing) {
+    // Si une vérification est en cours, attendre qu'elle se termine
+    if (pendingAuthCheck) {
+      await pendingAuthCheck;
       return;
     }
-    
-    // Éviter les vérifications trop rapprochées (max 1 fois par seconde)
-    if (now - lastInitAttempt < 1000) {
-      return;
+
+    // Vérifier si une nouvelle vérification est nécessaire
+    if (!shouldCheckAuth()) {
+      if (cachedAuthState) {
+        setState(cachedAuthState);
+        return;
+      }
     }
-    
-    isGlobalInitializing = true;
-    lastInitAttempt = now;
-    
-    try {
-      if (!isMounted.current) {
-        isGlobalInitializing = false;
-        return;
-      }
-      
-      setState(prev => ({ ...prev, isLoading: true }));
-      
-      // Vérifier si un cookie d'authentification existe
-      const authToken = getCookie('auth_token');
-      if (authToken) {
-      }
-      
-      const response = await fetch('/api/auth/me', {
-        method: 'GET',
-        credentials: 'include'
-      });
 
-      if (!isMounted.current) {
-        isGlobalInitializing = false;
-        return;
-      }
+    // Créer une nouvelle promesse pour la vérification
+    pendingAuthCheck = (async () => {
+      try {
+        if (!isMounted.current) return;
+        
+        const authToken = getCookie('auth_token');
+        
+        // Si pas de token, l'utilisateur n'est pas connecté
+        if (!authToken) {
+          const newState = {
+            user: null,
+            isAuthenticated: false,
+            isAnonymous: false,
+            isLoading: false,
+            error: null,
+            isInitialized: true
+          };
+          
+          cachedAuthState = newState;
+          lastAuthCheck = Date.now();
+          setState(newState);
+          return;
+        }
+        
+        setState(prev => ({ ...prev, isLoading: true }));
+        
+        const response = await fetch('/api/auth/me', {
+          method: 'GET',
+          credentials: 'include'
+        });
 
-      if (response.ok) {
-        const data = await response.json();
+        if (!isMounted.current) return;
+
+        if (response.ok) {
+          const data = await response.json();
+          const newState = {
+            user: data.user,
+            isAuthenticated: true,
+            isAnonymous: false,
+            isLoading: false,
+            error: null,
+            isInitialized: true
+          };
+          
+          cachedAuthState = newState;
+          lastAuthCheck = Date.now();
+          setState(newState);
+        } else {
+          // Token invalide, l'utilisateur n'est pas connecté
+          const newState = {
+            user: null,
+            isAuthenticated: false,
+            isAnonymous: false,
+            isLoading: false,
+            error: null,
+            isInitialized: true
+          };
+          
+          cachedAuthState = newState;
+          lastAuthCheck = Date.now();
+          setState(newState);
+        }
+      } catch (error) {
+        if (!isMounted.current) return;
+        
         setState({
-          user: data.user,
-          isAuthenticated: true,
-          isAnonymous: data.user.isAnonymous,
+          user: null,
+          isAuthenticated: false,
+          isAnonymous: false,
           isLoading: false,
-          error: null,
+          error: 'Failed to check authentication status',
           isInitialized: true
         });
-      } else {
-        // Pas d'utilisateur connecté, créer un utilisateur anonyme
-        await loginAnonymously();
+      } finally {
+        pendingAuthCheck = null;
       }
-    } catch (error) {
-      if (!isMounted.current) {
-        isGlobalInitializing = false;
-        return;
-      }
-      
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: 'Failed to check authentication status',
-        isInitialized: true
-      }));
-    } finally {
-      isGlobalInitializing = false;
-    }
+    })();
+
+    await pendingAuthCheck;
   };
 
   // Fonction pour la connexion anonyme
@@ -450,7 +484,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Fonction pour rafraîchir l'état d'authentification
   const refreshAuthState = async () => {
-    if (isGlobalInitializing) return;
+    if (pendingAuthCheck) return;
     await checkAuthStatus();
   };
 
@@ -458,15 +492,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     isMounted.current = true;
     
-    // Retarder légèrement la vérification pour éviter les conditions de course
-    const timer = setTimeout(() => {
-      if (!state.isInitialized && !isGlobalInitializing) {
-        checkAuthStatus();
-      }
-    }, 50);
+    // Vérifier l'authentification seulement si nécessaire
+    if (!state.isInitialized && !pendingAuthCheck && shouldCheckAuth()) {
+      checkAuthStatus();
+    }
     
     return () => {
-      clearTimeout(timer);
       isMounted.current = false;
     };
   }, []);

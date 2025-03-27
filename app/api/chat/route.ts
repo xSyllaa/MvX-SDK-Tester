@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { SubscriptionPlanType, getPlanLimits } from '@/lib/subscription-plans';
@@ -12,16 +12,17 @@ if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
   throw new Error('GOOGLE_GENERATIVE_AI_API_KEY is not defined');
 }
 
-// Initialiser l'API Google AI côté serveur avec la version gratuite
+// Initialiser l'API Google AI côté serveur
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 
-// Configuration du modèle pour la version gratuite
+// Configuration du modèle
 const modelConfig = {
-  model: 'gemini-1.0-pro',
+  model: 'gemini-1.5-flash',
   generationConfig: {
     temperature: 0.7,
     topP: 0.8,
     topK: 40,
+    maxOutputTokens: 2048,
   },
 };
 
@@ -33,25 +34,31 @@ interface UserInfo {
 // Vérifier l'authentification et récupérer les informations de l'utilisateur
 async function authenticateUser(request: NextRequest): Promise<UserInfo> {
   // Vérifier d'abord si le cookie d'authentification existe
-  const authToken = request.cookies.get('sb-access-token')?.value;
+  const authToken = request.cookies.get('auth_token')?.value;
   
   if (!authToken) {
     throw new Error('Authentication required');
   }
   
-  // Vérifier le token avec Supabase
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(authToken);
-  
-  if (authError || !user || !user.email) {
-    // On vérifie explicitement user.email pour s'assurer que c'est un vrai utilisateur authentifié
+  // Vérifier le token dans notre base de données
+  const { data: sessions, error: sessionError } = await supabaseAdmin
+    .from('sessions')
+    .select('user_id')
+    .eq('token', authToken)
+    .gt('expires_at', new Date().toISOString())
+    .single();
+
+  if (sessionError || !sessions) {
     throw new Error('Invalid authentication token');
   }
+
+  const userId = sessions.user_id;
   
   // Vérifier que l'utilisateur existe dans notre table users
   const { data: userData, error: userError } = await supabaseAdmin
     .from('users')
     .select('subscription_plan, email')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single();
     
   if (userError || !userData || !userData.email) {
@@ -59,7 +66,7 @@ async function authenticateUser(request: NextRequest): Promise<UserInfo> {
   }
   
   return {
-    id: user.id,
+    id: userId,
     subscriptionPlan: (userData.subscription_plan || 'free') as SubscriptionPlanType
   };
 }
@@ -99,6 +106,8 @@ async function checkUsageLimits(userId: string, subscriptionPlan: SubscriptionPl
 async function logApiRequest(userId: string, message: string, subscriptionPlan: SubscriptionPlanType) {
   const timestamp = new Date().toISOString();
   
+  console.log(`[API] Logging chat request for user ${userId}`);
+  
   // Insérer la requête dans api_requests
   const { error: insertError } = await supabaseAdmin
     .from('api_requests')
@@ -111,40 +120,35 @@ async function logApiRequest(userId: string, message: string, subscriptionPlan: 
     });
     
   if (insertError) {
+    console.error('[API] Failed to log request in api_requests:', insertError);
     throw new Error('Failed to log request');
   }
   
-  // Mettre à jour les compteurs d'utilisation avec upsert
-  const { error: updateError } = await supabaseAdmin
-    .from('user_api_usage_summary')
-    .upsert({
-      user_id: userId,
-      today_count: 1,
-      week_count: 1,
-      month_count: 1,
-      last_request_at: timestamp
-    }, {
-      onConflict: 'user_id'
-    });
-    
-  if (updateError) {
-    throw new Error('Failed to update usage counters');
-  }
+  console.log('[API] Successfully logged request in api_requests');
 }
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('[API] Received chat request');
+    console.log('[API] Cookies:', request.cookies.getAll());
+    
     // 1. Authentifier l'utilisateur
     const userInfo = await authenticateUser(request);
+    console.log('[API] User authenticated:', userInfo);
     
     // 2. Vérifier le corps de la requête
-    const { message, contextType = 'landing' } = await request.json();
+    const body = await request.json();
+    console.log('[API] Request body:', body);
+    const { message, contextType = 'landing', messages = [] } = body;
+    
     if (!message) {
+      console.log('[API] Error: Message is required');
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
     
     // 3. Vérifier les limites d'utilisation
-    await checkUsageLimits(userInfo.id, userInfo.subscriptionPlan);
+    const usageData = await checkUsageLimits(userInfo.id, userInfo.subscriptionPlan);
+    console.log('[API] Usage limits checked:', usageData);
     
     // 4. Enregistrer la requête AVANT de générer la réponse
     await logApiRequest(userInfo.id, message, userInfo.subscriptionPlan);
@@ -153,16 +157,32 @@ export async function POST(request: NextRequest) {
     const context = getLandingContext();
     const fullContext = generateFullContext(context);
     
-    // 6. Générer la réponse avec l'IA en incluant le contexte
+    // 6. Construire l'historique de la conversation
+    let conversationHistory = `${fullContext}\n\n`;
+    
+    // Ajouter l'historique des messages précédents
+    messages.forEach((msg: { role: string; content: string }) => {
+      conversationHistory += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
+    });
+    
+    // Ajouter le nouveau message
+    conversationHistory += `User: ${message}\nAssistant:`;
+    
+    // 7. Générer la réponse avec l'IA
+    console.log('[API] Sending message to AI');
     const model = genAI.getGenerativeModel(modelConfig);
-    const prompt = `${fullContext}\n\nUser: ${message}\nAssistant:`;
-    const result = await model.generateContent(prompt);
+
+    // Utiliser le format le plus simple
+    const result = await model.generateContent(conversationHistory);
     const response = await result.response;
     const text = response.text();
-    
+
     if (!text) {
+      console.log('[API] Error: Empty response from AI');
       throw new Error('Empty response from AI');
     }
+
+    console.log('[API] AI response received');
     
     return NextResponse.json({
       response: text,
@@ -175,7 +195,7 @@ export async function POST(request: NextRequest) {
     });
     
   } catch (error: any) {
-    console.error('Error processing chatbot request:', error);
+    console.error('[API] Error processing chatbot request:', error);
     
     // Retourner des erreurs spécifiques selon le type
     if (error.message === 'Authentication required' || error.message === 'Invalid authentication token') {
@@ -188,7 +208,7 @@ export async function POST(request: NextRequest) {
     
     // Erreur générique pour tout autre cas
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error.message },
       { status: 500 }
     );
   }
