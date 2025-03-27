@@ -10,6 +10,7 @@ interface User {
   avatarUrl: string | null;
   isVerified: boolean;
   isAnonymous: boolean;
+  createdAt: string;
 }
 
 interface UseAuthOptions {

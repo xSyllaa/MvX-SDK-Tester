@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { LogOut, User, BarChart } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import PasswordChangeForm from '../components/PasswordChangeForm';
@@ -78,6 +79,20 @@ export default function AccountPage() {
       console.error('Logout failed:', error);
     }
   }, [router]);
+
+  // Fonction pour calculer le pourcentage d'utilisation
+  const calculateUsagePercentage = (used: number, limit: number) => {
+    return Math.min((used / limit) * 100, 100);
+  };
+
+  // Fonction pour formater la date
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
   
   // Show loading state while checking session
   if (isLoading) {
@@ -136,9 +151,9 @@ export default function AccountPage() {
                   <p className="text-sm text-muted-foreground">{userData?.name}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Join Date</p>
+                  <p className="text-sm font-medium">Member Since</p>
                   <p className="text-sm text-muted-foreground">
-                    {userData?.joinDate ? new Date(userData.joinDate).toLocaleDateString() : 'N/A'}
+                    {userData?.createdAt ? formatDate(userData.createdAt) : 'N/A'}
                   </p>
                 </div>
                 <div>
@@ -181,35 +196,56 @@ export default function AccountPage() {
             </CardHeader>
             <CardContent>
               {usageStats ? (
-                <div className="space-y-6">
-                  <div className="grid gap-4">
-                    <div>
-                      <p className="text-sm font-medium">Daily Usage</p>
-                      <p className="text-sm text-muted-foreground">
-                        {usageStats.today} / {usageStats.limits.dailyLimit} requests
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Weekly Usage</p>
-                      <p className="text-sm text-muted-foreground">
-                        {usageStats.week} / {usageStats.limits.weeklyLimit} requests
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Monthly Usage</p>
-                      <p className="text-sm text-muted-foreground">
-                        {usageStats.month} / {usageStats.limits.monthlyLimit} requests
-                      </p>
-                    </div>
-                    {usageStats.lastRequest && (
-                      <div>
-                        <p className="text-sm font-medium">Last Request</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(usageStats.lastRequest).toLocaleString()}
-                        </p>
+                <div className="space-y-8">
+                  <div className="grid gap-6">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium">Daily Usage</span>
+                        <span className="text-muted-foreground">
+                          {usageStats.today} / {usageStats.limits.dailyLimit} requests
+                        </span>
                       </div>
-                    )}
+                      <Progress 
+                        value={calculateUsagePercentage(usageStats.today, usageStats.limits.dailyLimit)} 
+                        className="h-2"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium">Weekly Usage</span>
+                        <span className="text-muted-foreground">
+                          {usageStats.week} / {usageStats.limits.weeklyLimit} requests
+                        </span>
+                      </div>
+                      <Progress 
+                        value={calculateUsagePercentage(usageStats.week, usageStats.limits.weeklyLimit)} 
+                        className="h-2"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium">Monthly Usage</span>
+                        <span className="text-muted-foreground">
+                          {usageStats.month} / {usageStats.limits.monthlyLimit} requests
+                        </span>
+                      </div>
+                      <Progress 
+                        value={calculateUsagePercentage(usageStats.month, usageStats.limits.monthlyLimit)} 
+                        className="h-2"
+                      />
+                    </div>
                   </div>
+
+                  {usageStats.lastRequest && (
+                    <div className="pt-4 border-t">
+                      <p className="text-sm font-medium">Last Request</p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatDate(usageStats.lastRequest)}
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-4">
